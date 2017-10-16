@@ -1,6 +1,6 @@
 '''
 HRV=IBI=RR interval
-HR~=1/HRV 1
+HR~=1/HRV 123456
 '''
 # IBI's sampling rate =heart rate#
 '''
