@@ -3,80 +3,86 @@ import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
 
-def avg_ref(data):
-	mean 	= np.mean(data, axis=0)
-	data 	= data - mean
-	return data
-	
-def butter_highpass(cutoff, fs, order=5):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
-    return b, a
-
-def butter_highpass_filter(data, cutoff, fs, order=5):
-	b, a = butter_highpass(cutoff, fs, order=order)
-
-	for i in range(data.shape[1]):
-		data[:,i] = signal.filtfilt(b, a, data[:,i])
-	return data
+SAMPLE_RATE = 128
 	
 def find_freq_interval(f, Pxx_den,lowerbound,upperbound):
-	Pxx_den_ = Pxx_den[:]
-	for i in range(f.shape[1]):
-		low_idx = np.where(f[:,i]>=lowerbound) # low[0] 
-		high_idx = np.where(f[:,i]>upperbound) # high[0]
-		Pxx_den_[0:low_idx,i] = 0;
-		Pxx_den_[high_idx,:] = 0;
+	Pxx_den_ 	= np.array(Pxx_den)
+	low_idx 	= np.where(f >= lowerbound) # np.where return tuple
+	low_idx		= np.array(low_idx).flatten()
+	high_idx 	= np.where(f >= upperbound) 
+	high_idx	= np.array(high_idx).flatten()
+	Pxx_den_[:low_idx[0]] = 0;
+	Pxx_den_[high_idx[0]:] = 0;
 	
-	Pxx_den_mean = np.mean(Pxx_den_, axis=0)
+	Pxx_den_mean = np.sum(Pxx_den_)/(high_idx[0]-low_idx[0])
 	return Pxx_den_mean
 	
-def compute_PSD(data, fs, nperseg = 128):
-	f 		= np.zeros(data.shape)
-	Pxx_den = np.zeros(data.shape)
-	for i in range(data.shape[1]):
-		f[:,i] , Pxx_den[:,i] = signal.welch(data[:,i], fs, nperseg)
-	theta_energy 		= find_freq_interval(f, Pxx_den, 3, 7)
-	slow_alpha_energy 	= find_freq_interval(f, Pxx_den, 8, 10)
-	alpha_energy 		= find_freq_interval(f, Pxx_den, 8, 13)
-	beta_energy			= find_freq_interval(f, Pxx_den, 14, 29)
-	gamma_energy 		= find_freq_interval(f, Pxx_den, 30, 47)
-
-	return theta_energy, slow_alpha_energy, alpha_energy, beta_energy, gamma_energy
-
-############################# Load data
-filename = './AMIGOS_data/' + sys.argv[1] +'.csv'
-original_EEG_signal = np.delete(np.genfromtxt(filename, delimiter=','),[14,15,16],1)
-
-############################# pre-processing
-#1. average-referenced
-avg_EEG_signal = avg_ref(original_EEG_signal)
-
-#2. HP filter with fc = 2 Hz
-filtered_EEG_signal = butter_highpass_filter(avg_EEG_signal, 2 , 128)
-
-############################ extract features
-theta_energy, slow_alpha_energy, alpha_energy, beta_energy, gamma_energy = compute_PSD(filtered_EEG_signal,128)
-
-asymmetry = np.zeros((7,5))
-for i in range(7):
-	asymmetry[i] = [theta_energy[i+1]-theta_energy[14-i],	slow_alpha_energy[i+1]-slow_alpha_energy[14-i],	alpha_energy[i+1]-alpha_energy[14-i],	beta_energy[i+1]-beta_energy[14-i],	gamma_energy[i+1]-gamma_energy[14-i]]
+def compute_PSD(data, fs, nperseg):
+	data = np.transpose(data) # each channel in a row
 	
-############################# Plot
-plt.figure(figsize=(20,10))
-plt.subplot(311)
-plt.plot(original_EEG_signal[:,0])
-plt.subplot(312)
-plt.plot(avg_EEG_signal[:,0])
-plt.subplot(313)
-plt.plot(filtered_EEG_signal[:,0])
-plt.show()
+	theta_power 		= np.zeros(data.shape[0])
+	slow_alpha_power 	= np.zeros(data.shape[0])
+	alpha_power 		= np.zeros(data.shape[0])
+	beta_power 			= np.zeros(data.shape[0])
+	gamma_power 		= np.zeros(data.shape[0])
+	
+	for i in range(data.shape[0]):
+		f , Pxx_den = signal.welch(data[i], fs, nperseg = nperseg)
+		theta_power[i] 		= find_freq_interval(f, Pxx_den, 3, 7)
+		slow_alpha_power[i] = find_freq_interval(f, Pxx_den, 8, 10)
+		alpha_power[i] 		= find_freq_interval(f, Pxx_den, 8, 13)
+		beta_power[i]		= find_freq_interval(f, Pxx_den, 14, 29)
+		gamma_power[i]		= find_freq_interval(f, Pxx_den, 30, 47)
 
+	return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power
 
+def asymmetry(power):
+	asy_power = np.zeros(power.shape[0]/2)
+	for i in range(asy_power.shape[0]):
+		asy_power[i] = power[i]-power[13-i]
+	
+	return asy_power
 
-#Ref: https://stackoverflow.com/questions/39032325/python-high-pass-filter
-#Ref: https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.welch.html
+def eeg_extract(eeg_signal):
+	theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power= compute_PSD(eeg_signal, SAMPLE_RATE, nperseg=128)
+	
+	asy_theta_power 		= asymmetry(theta_power)
+	asy_slow_alpha_power	= asymmetry(slow_alpha_power)
+	asy_alpha_power 		= asymmetry(alpha_power)
+	asy_beta_power 			= asymmetry(beta_power)
+	asy_gamma_power 		= asymmetry(gamma_power)
 
+	eeg_features = {
+        'theta_power': theta_power,
+        'slow_alpha_power': slow_alpha_power,
+        'alpha_power': alpha_power,
+        'beta_power': beta_power,
+        'gamma_power': gamma_power,
+        'asy_theta_power': asy_theta_power,
+        'asy_slow_alpha_power': asy_slow_alpha_power,
+        'asy_alpha_power': asy_alpha_power,
+        'asy_beta_power': asy_beta_power,
+        'asy_gamma_power': asy_gamma_power
+    }
+	
+	return eeg_features
+	
+if __name__ == "__main__":
+	filename = './AMIGOS_data/' + sys.argv[1] +'.csv'
+	AMIGOS_data = np.genfromtxt(filename, delimiter=',')
+	
+	EEG_signal = AMIGOS_data[:,:14] 
+	ECG_signal = AMIGOS_data[:,14] #pick one of two ECG signals
+	GSR_signal = AMIGOS_data[:,-1]
+	
+	EEG_features = eeg_extract(EEG_signal)
+	# ECG_features = ecg_extract(ECG_signal)
+	# GSR_features = gsr_extract(GSR_signal)
+	
+	for keys,values in EEG_features.items():
+		print(keys)
+		print(values)
+
+	
 
 
