@@ -234,14 +234,14 @@ def gsr_preprocessing(signals):
             local_min += 1
 
     rising_time = 0
-    rising_ctn = 0
+    rising_cnt = 0
     for signal in der_signals:
         if signal < 0:
-            rising_ctn += 1
+            rising_cnt += 1
         else:
             rising_time += 1
 
-    avg_rising_time = rising_time / (rising_ctn * SAMPLE_RATE)
+    avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
 
     gsr_fourier = np.fft.fft(signals)
     gsr_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
