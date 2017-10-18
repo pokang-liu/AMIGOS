@@ -16,9 +16,15 @@ from scipy.stats import skew, kurtosis
 
 warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
 
-PARTICIPANT_NUM = 1
-VIDEO_NUM = 1
+SUBJECT_NUM = 40
+VIDEO_NUM = 16
 SAMPLE_RATE = 128
+MISSING_DATA = [(9, 1), (9, 2), (9, 3), (9, 6), (9, 7), (9, 9), (9, 11),
+                (9, 12), (9, 13), (9, 15), (9, 16), (12, 5), (21, 2), (21, 11),
+                (22, 16), (23, 1), (23, 5), (23, 7), (23, 9), (23, 12), (24, 1),
+                (24, 8), (24, 12), (24, 13), (24, 14), (24, 15), (24, 16), (33, 1),
+                (33, 2), (33, 3), (33, 7), (33, 8), (33, 9), (33, 10), (33, 11),
+                (33, 13), (33, 16)]
 
 
 def filter(spectrum, lower, upper):
@@ -221,15 +227,15 @@ def gsr_preprocessing(signals):
     neg_der_pro = der_signals[der_signals < 0].size / der_signals.size
 
     local_min = 0
-    for idx, signal in enumerate(signals):
-        if idx == 0:
+    for i in range(signals.shape[0] - 1):
+        if i == 0:
             continue
-        if signals[idx - 1] > signal and signal < signals[idx + 1]:
+        if signals[i - 1] > signals[i] and signals[i] < signals[i + 1]:
             local_min += 1
 
     rising_time = 0
     rising_ctn = 0
-    for _, signal in enumerate(der_signals):
+    for signal in der_signals:
         if signal < 0:
             rising_ctn += 1
         else:
@@ -292,6 +298,7 @@ def gsr_preprocessing(signals):
         'mean_sr_neg_der': neg_der_mean,
         'pro_neg_der': neg_der_pro,
         'local_min_gsr': local_min,
+        'avg_rising_time': avg_rising_time,
         'power_0_24': power_0_24,
         'zcr_SCSR': zcr_SCSR,
         'zcr_SCVSR': zcr_SCVSR,
@@ -304,11 +311,14 @@ def gsr_preprocessing(signals):
 
 def read_dataset(path):
     ''' Read AMIGOS dataset '''
-    amigos_data = []
+    amigos_data = dict()
 
-    for pid in range(PARTICIPANT_NUM):
+    for sid in range(SUBJECT_NUM):
         for vid in range(VIDEO_NUM):
-            signals = np.genfromtxt(os.path.join(path, "{}_{}.csv".format(pid + 1, vid + 1)),
+            if (sid + 1, vid + 1) in MISSING_DATA:
+                continue
+            print('Reading {}_{}.csv'.format(sid + 1, vid + 1))
+            signals = np.genfromtxt(os.path.join(path, "{}_{}.csv".format(sid + 1, vid + 1)),
                                     delimiter=',')
             eeg_signals = signals[:, :14]
             ecg_signals = signals[:, 14]  # Column 14 or 15
@@ -319,7 +329,7 @@ def read_dataset(path):
             gsr_features = gsr_preprocessing(gsr_signals)
 
             features = {**eeg_features, **ecg_features, **gsr_features}
-            amigos_data.append(features)
+            amigos_data["{}_{}".format(sid + 1, vid + 1)] = features
 
     return amigos_data
 
