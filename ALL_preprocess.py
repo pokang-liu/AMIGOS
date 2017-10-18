@@ -258,8 +258,11 @@ def gsr_preprocessing(signals):
     SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
     SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
 
-    zero_cross_SCSR = 0
-    zero_cross_SCVSR = 0
+    zero_cross_SCSR = sum(1 for i in range(0, len(SCSR)-1) 
+								if SCSR[i] * next((j for j in SCSR[i+1:] if j != 0), 0) < 0)
+								
+    zero_cross_SCVSR = sum(1 for i in range(0, len(SCVSR)-1) 
+								if SCVSR[i]*next((j for j in SCVSR[i+1:] if j != 0), 0) < 0)
 
     peaks_ctn_SCSR = 0
     peaks_ctn_SCVSR = 0
@@ -267,10 +270,10 @@ def gsr_preprocessing(signals):
     peaks_value_SCVSR = 0.
 
     for i in range(nor_con_signals.size - 1):
-        if SCSR[i] * SCSR[i + 1] < 0:
-            zero_cross_SCSR += 1
-        if SCVSR[i] * SCVSR[i + 1] < 0:
-            zero_cross_SCVSR += 1
+		# if SCSR[i] * SCSR[i + 1] < 0:
+            # zero_cross_SCSR += 1
+        # if SCVSR[i] * SCVSR[i + 1] < 0:
+            # zero_cross_SCVSR += 1
         if i == 0:
             continue
         elif SCSR[i - 1] > SCSR[i] and SCSR[i] < SCSR[i + 1]:
