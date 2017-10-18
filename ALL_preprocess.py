@@ -257,37 +257,51 @@ def gsr_preprocessing(signals):
 
     SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
     SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
-
-    zero_cross_SCSR = sum(1 for i in range(0, len(SCSR)-1) 
-								if SCSR[i] * next((j for j in SCSR[i+1:] if j != 0), 0) < 0)
-								
-    zero_cross_SCVSR = sum(1 for i in range(0, len(SCVSR)-1) 
-								if SCVSR[i]*next((j for j in SCVSR[i+1:] if j != 0), 0) < 0)
-
-    peaks_ctn_SCSR = 0
-    peaks_ctn_SCVSR = 0
-    peaks_value_SCSR = 0.
-    peaks_value_SCVSR = 0.
+	
+	zero_cross_SCSR 	= 0
+	zero_cross_SCVSR 	= 0
+	peaks_cnt_SCSR 		= 0
+    peaks_cnt_SCVSR 	= 0
+    peaks_value_SCSR 	= 0.
+    peaks_value_SCVSR 	= 0.
+	
+	# modify!!!!
+	# zc_idx_SCSR 	= np.array([],int) # must be int, otherwise it will be float
+	# zc_idx_SCVSR 	= np.array([],int)
+	# for i in range(nor_con_signals.size - 1):
+		# if SCSR[i] * next((j for j in SCSR[i+1:] if j != 0), 0) < 0:
+			# zero_cross_SCSR 	+= 1
+			# zc_idx_SCSR 		= np.append(zc_idx_SCSR,i+1)
+		# if SCVSR[i]*next((j for j in SCVSR[i+1:] if j != 0), 0) < 0:
+			# zero_cross_SCVSR 	+= 1
+			# zc_idx_SCVSR 		= np.append(zc_idx_SCVSR,i)
+			
+	# for i in range(zc_idx_SCSR.size-1):
+		# peaks_value_SCSR 	+= np.absolute(SCSR[zc_idx_SCSR[i]:zc_idx_SCSR[i+1]]).max()
+		# peaks_cnt_SCSR 		+= 1
+	# for i in range(zc_idx_SCVSR.size-1):
+		# peaks_value_SCVSR	+= np.absolute(SCSR[zc_idx_SCVSR[i]:zc_idx_SCVSR[i+1]]).max()
+		# peaks_cnt_SCVSR 	+= 1
 
     for i in range(nor_con_signals.size - 1):
-		# if SCSR[i] * SCSR[i + 1] < 0:
-            # zero_cross_SCSR += 1
-        # if SCVSR[i] * SCVSR[i + 1] < 0:
-            # zero_cross_SCVSR += 1
+		if SCSR[i] * SCSR[i + 1] < 0:
+            zero_cross_SCSR += 1
+        if SCVSR[i] * SCVSR[i + 1] < 0:
+            zero_cross_SCVSR += 1
         if i == 0:
             continue
         elif SCSR[i - 1] > SCSR[i] and SCSR[i] < SCSR[i + 1]:
             peaks_value_SCSR += SCSR[i]
-            peaks_ctn_SCSR += 1
+            peaks_cnt_SCSR += 1
         elif SCVSR[i - 1] > SCVSR[i] and SCVSR[i] < SCVSR[i + 1]:
             peaks_value_SCVSR += SCSR[i]
-            peaks_ctn_SCVSR += 1
+            peaks_cnt_SCVSR += 1
 
     zcr_SCSR = zero_cross_SCSR / (nor_con_signals.size / 128)
     zcr_SCVSR = zero_cross_SCVSR / (nor_con_signals.size / 128)
 
-    mean_peak_SCSR = peaks_value_SCSR / peaks_ctn_SCSR
-    mean_peak_SCVSR = peaks_value_SCVSR / peaks_ctn_SCVSR
+    mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR
+    mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR
 
     features = np.concatenate(([mean, der_mean, neg_der_mean, neg_der_pro,
                                 local_min, avg_rising_time], power_0_24,
