@@ -159,7 +159,10 @@ def ecg_preprocessing(signals):
     for i in range(len(rpeaks) - 1):
         IBI = np.append(IBI, (rpeaks[i + 1] - rpeaks[i]) / 128)
 
-    heart_rate = 1 / IBI
+    heart_rate = np.array([])
+    for i in range(len(IBI)):
+        append_value = 1 / IBI[i] if IBI[i] != 0 else 0
+        heart_rate = np.append(heart_rate, append_value)
 
     mean_IBI = np.mean(IBI)
     rms_IBI = np.sqrt(np.mean(np.square(IBI)))
@@ -321,6 +324,7 @@ def read_dataset(path):
     for sid in range(SUBJECT_NUM):
         for vid in range(VIDEO_NUM):
             if (sid + 1, vid + 1) in MISSING_DATA:
+                print("Skipping {}_{}.csv".format(sid + 1, vid + 1))
                 continue
             print('Reading {}_{}.csv'.format(sid + 1, vid + 1))
             signals = np.genfromtxt(os.path.join(path, "{}_{}.csv".format(sid + 1, vid + 1)),
