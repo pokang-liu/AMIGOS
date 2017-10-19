@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score
 
-from ALL_preprocess import MISSING_DATA, SUBJECT_NUM
+from ALL_preprocess import MISSING_DATA, SUBJECT_NUM, VIDEO_NUM
 
 MISSING_DATA_IDX = []
 for tup in MISSING_DATA:
@@ -23,8 +23,8 @@ def main():
     with open(os.path.join('data', 'features.p'), 'rb') as pickle_file:
         amigos_data = pickle.load(pickle_file)
 
-    a_clf = SVC(kernel='linear')
-    v_clf = SVC(kernel='linear')
+    a_clf = SVC(C=0.25, kernel='linear')
+    v_clf = SVC(C=0.25, kernel='linear')
 
     train_a_accuracy_history = []
     train_v_accuracy_history = []
@@ -43,14 +43,11 @@ def main():
         for key, data_dict in amigos_data.items():
             tmp_array = np.array([])
             for _, item in data_dict.items():
-                if isinstance(item, np.ndarray):
-                    tmp_array = np.concatenate((tmp_array, item))
-                else:
-                    tmp_array = np.append(tmp_array, item)
+                tmp_array = np.append(tmp_array, item)
             if key.split('_')[0] == str(i + 1):
-                val_data = np.append(val_data, tmp_array)
+                val_data = np.vstack((val_data, tmp_array)) if val_data.size else tmp_array
             else:
-                train_data = np.append(train_data, tmp_array)
+                train_data = np.vstack((train_data, tmp_array)) if train_data.size else tmp_array
 
         train_a_labels = []
         train_v_labels = []
@@ -63,11 +60,13 @@ def main():
                 if idx in MISSING_DATA_IDX:
                     continue
                 if idx in val_idx:
-                    val_a_labels.append(float(line.split(',')[0]))
-                    val_v_labels.append(float(line.split(',')[1]))
+                    val_a_labels.append(int(float(line.split(',')[0]) / 5))
+                    val_v_labels.append(int(float(line.split(',')[1]) / 5))
                 else:
-                    train_a_labels.append(float(line.split(',')[0]))
-                    train_v_labels.append(float(line.split(',')[1]))
+                    train_a_labels.append(int(float(line.split(',')[0]) / 5))
+                    train_v_labels.append(int(float(line.split(',')[1]) / 5))
+                if idx == SUBJECT_NUM * VIDEO_NUM - 1:
+                    break
 
         print('Training Arousal Model')
         a_clf.fit(train_data, train_a_labels)
