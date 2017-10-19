@@ -26,5 +26,6 @@ print(Fisher.shape)
 
 feature_idx=np.arange(212)
 Fisher_sorted = np.array(Fisher).argsort()
+#####################################################
 sorted_feature_idx = feature_idx[Fisher_sorted[::-1]]
-        
+#####################################################
