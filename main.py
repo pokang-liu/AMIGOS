@@ -17,6 +17,11 @@ MISSING_DATA_IDX = []
 for tup in MISSING_DATA:
     MISSING_DATA_IDX.append((tup[0] - 1) * 16 + tup[1] - 1)
 
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, 'model')
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+
 
 def main():
     ''' Main function '''
@@ -48,6 +53,13 @@ def main():
                 val_data = np.vstack((val_data, tmp_array)) if val_data.size else tmp_array
             else:
                 train_data = np.vstack((train_data, tmp_array)) if train_data.size else tmp_array
+
+        train_data_max = np.max(train_data, axis=0)
+        train_data_min = np.min(train_data, axis=0)
+        train_data = (train_data - train_data_min) / (train_data_max - train_data_min)
+        val_data_max = np.max(val_data, axis=0)
+        val_data_min = np.min(val_data, axis=0)
+        val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
 
         train_a_labels = []
         train_v_labels = []
@@ -106,10 +118,10 @@ def main():
         val_a_f1score_history.append(val_a_f1score)
         val_v_f1score_history.append(val_v_f1score)
 
-        with open(os.path.join('model', "a_model_{}.p".format(i + 1)), 'wb') as pickle_file:
+        with open(os.path.join(MODEL_DIR, "a_model_{}.p".format(i + 1)), 'wb') as pickle_file:
             pickle.dump(a_clf, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
-        with open(os.path.join('model', "v_model_{}.p".format(i + 1)), 'wb') as pickle_file:
+        with open(os.path.join(MODEL_DIR, "v_model_{}.p".format(i + 1)), 'wb') as pickle_file:
             pickle.dump(v_clf, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     print('\nAverage Training Result')
