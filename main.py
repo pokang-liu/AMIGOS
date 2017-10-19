@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score
 
-from preprocessing import MISSING_DATA, SUBJECT_NUM
+from ALL_preprocess import MISSING_DATA, SUBJECT_NUM
 
 MISSING_DATA_IDX = []
 for tup in MISSING_DATA:

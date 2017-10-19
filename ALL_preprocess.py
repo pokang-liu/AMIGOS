@@ -8,7 +8,6 @@ Functions for Preprocessing
 import os
 import pickle
 import warnings
-from biosppy.signals import eeg
 from biosppy.signals import ecg
 import numpy as np
 from scipy.signal import butter, lfilter, filtfilt, detrend
@@ -44,7 +43,7 @@ def spectrum_power(spectrum, idx_pairs):
     for val in np.nditer(spectrumbuf):
         power += abs(val * val)
 
-    return np.array([power])
+    return power
 
 
 def butter_highpass(cutoff, fs, order=5):
@@ -75,54 +74,63 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 
 def eeg_preprocessing(signals):
     ''' Preprocessing for EEG signals '''
-    eeg_all = eeg.eeg(signal=signals, sampling_rate=128., show=False)
+    trans_signals = np.transpose(signals)
+    theta_power = []
+    slow_alpha_power = []
+    alpha_power = []
+    beta_power = []
+    gamma_power = []
 
-    theta = eeg_all['theta']
-    alpha_low = eeg_all['alpha_low']
-    alpha_high = eeg_all['alpha_high']
-    beta = eeg_all['beta']
-    gamma = eeg_all['gamma']
+    for channel_signals in trans_signals:
+        eeg_fourier = np.fft.fft(channel_signals)
+        eeg_freq_idx = np.fft.fftfreq(channel_signals.size, d=(1 / 128))
+        positive_eeg_freq_idx = eeg_freq_idx[:(int((eeg_freq_idx.shape[0] + 1) / 2))]
 
-    theta_power = np.sum(theta, axis=0)
-    alpha_low_power = np.sum(alpha_low, axis=0)
-    alpha_high_power = np.sum(alpha_high, axis=0)
-    beta_power = np.sum(beta, axis=0)
-    gamma_power = np.sum(gamma, axis=0)
+        theta_power.append(spectrum_power(eeg_fourier,
+                                          (filter(positive_eeg_freq_idx, 3, 7))))
+        slow_alpha_power.append(spectrum_power(eeg_fourier,
+                                               (filter(positive_eeg_freq_idx, 8, 10))))
+        alpha_power.append(spectrum_power(eeg_fourier,
+                                          (filter(positive_eeg_freq_idx, 8, 13))))
+        beta_power.append(spectrum_power(eeg_fourier,
+                                         (filter(positive_eeg_freq_idx, 14, 29))))
+        gamma_power.append(spectrum_power(eeg_fourier,
+                                          (filter(positive_eeg_freq_idx, 30, 47))))
 
     theta_spa = []
-    alpha_low_spa = []
-    alpha_high_spa = []
+    slow_alpha_spa = []
+    alpha_spa = []
     beta_spa = []
     gamma_spa = []
 
     for i in range(7):
         theta_spa.append((theta_power[i] - theta_power[13 - i]) /
                          (theta_power[i] + theta_power[13 - i]))
-        alpha_low_spa.append((alpha_low_power[i] - alpha_low_power[13 - i]) /
-                             (alpha_low_power[i] + alpha_low_power[13 - i]))
-        alpha_high_spa.append((alpha_high_power[i] - alpha_high_power[13 - i]) /
-                              (alpha_high_power[i] + alpha_high_power[13 - i]))
+        slow_alpha_spa.append((slow_alpha_power[i] - slow_alpha_power[13 - i]) /
+                              (slow_alpha_power[i] + slow_alpha_power[13 - i]))
+        alpha_spa.append((alpha_power[i] - alpha_power[13 - i]) /
+                         (alpha_power[i] + alpha_power[13 - i]))
         beta_spa.append((beta_power[i] - beta_power[13 - i]) /
                         (beta_power[i] + beta_power[13 - i]))
         gamma_spa.append((gamma_power[i] - gamma_power[13 - i]) /
                          (gamma_power[i] + gamma_power[13 - i]))
 
-    features = np.concatenate((theta_power, alpha_low_power,
-                               alpha_high_power, beta_power,
-                               gamma_power, theta_spa, alpha_low_spa,
-                               alpha_high_spa, beta_spa, gamma_spa))
+    # features = np.concatenate((theta_power, alpha_low_power,
+    #                            alpha_high_power, beta_power,
+    #                            gamma_power, theta_spa, alpha_low_spa,
+    #                            alpha_high_spa, beta_spa, gamma_spa))
 
-    print("There are {} EEG features".format(features.size))
+    # print("There are {} EEG features".format(features.size))
 
     features = {
         'theta_power': theta_power,
-        'slow_alpha_power': alpha_low_power,
-        'alpha_power': alpha_high_power,
+        'slow_alpha_power': slow_alpha_power,
+        'alpha_power': alpha_power,
         'beta_power': beta_power,
         'gamma_power': gamma_power,
         'theta_spa': theta_spa,
-        'slow_alpha_spa': alpha_low_spa,
-        'alpha_spa': alpha_high_spa,
+        'slow_alpha_spa': slow_alpha_spa,
+        'alpha_spa': alpha_spa,
         'beta_spa': beta_spa,
         'gamma_spa': gamma_spa
     }
@@ -140,13 +148,12 @@ def ecg_preprocessing(signals):
     ecg_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
     positive_ecg_freq_idx = ecg_freq_idx[:(int((ecg_freq_idx.shape[0] + 1) / 2))]
 
-    power_0_6 = np.array([])
+    power_0_6 = []
     for i in range(60):
-        power_0_6 = np.append(power_0_6,
-                              spectrum_power(ecg_fourier,
-                                             (filter(positive_ecg_freq_idx,
-                                                     0 + (i * 0.1),
-                                                     0.1 + (i * 0.1)))))
+        power_0_6.append(spectrum_power(ecg_fourier,
+                                        (filter(positive_ecg_freq_idx,
+                                                0 + (i * 0.1),
+                                                0.1 + (i * 0.1)))))
 
     IBI = np.array([])
     for i in range(len(rpeaks) - 1):
@@ -182,15 +189,15 @@ def ecg_preprocessing(signals):
     per_below_heart_rate = heart_rate[heart_rate <
                                       mean_heart_rate - std_heart_rate].size / heart_rate.size
 
-    features = np.concatenate(([rms_IBI, mean_IBI], power_0_6,
-                               [power_001_008, power_008_015,
-                                power_015_050, mean_heart_rate,
-                                std_heart_rate, skew_heart_rate,
-                                kurt_heart_rate, per_above_heart_rate,
-                                per_below_heart_rate, std_IBI, skew_IBI,
-                                kurt_IBI, per_above_IBI, per_below_IBI]))
+    # features = np.concatenate(([rms_IBI, mean_IBI], power_0_6,
+    #                            [power_001_008, power_008_015,
+    #                             power_015_050, mean_heart_rate,
+    #                             std_heart_rate, skew_heart_rate,
+    #                             kurt_heart_rate, per_above_heart_rate,
+    #                             per_below_heart_rate, std_IBI, skew_IBI,
+    #                             kurt_IBI, per_above_IBI, per_below_IBI]))
 
-    print("There are {} ECG features".format(features.size))
+    # print("There are {} ECG features".format(features.size))
 
     features = {
         'rms_IBI': rms_IBI,
@@ -247,23 +254,22 @@ def gsr_preprocessing(signals):
     gsr_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
     positive_gsr_freq_idx = gsr_freq_idx[:(int((gsr_freq_idx.shape[0] + 1) / 2))]
 
-    power_0_24 = np.array([])
+    power_0_24 = []
     for i in range(21):
-        power_0_24 = np.append(power_0_24,
-                               spectrum_power(gsr_fourier,
-                                              (filter(positive_gsr_freq_idx,
-                                                      0 + (i * 0.8 / 7),
-                                                      0.1 + (i * 0.8 / 7)))))
+        power_0_24.append(spectrum_power(gsr_fourier,
+                                         (filter(positive_gsr_freq_idx,
+                                                 0 + (i * 0.8 / 7),
+                                                 0.1 + (i * 0.8 / 7)))))
 
     SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
     SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
 
-    zero_cross_SCSR 	= 0
-    zero_cross_SCVSR 	= 0
-    peaks_cnt_SCSR 		= 0
-    peaks_cnt_SCVSR 	= 0
-    peaks_value_SCSR 	= 0.
-    peaks_value_SCVSR 	= 0.
+    zero_cross_SCSR = 0
+    zero_cross_SCVSR = 0
+    peaks_cnt_SCSR = 0
+    peaks_cnt_SCVSR = 0
+    peaks_value_SCSR = 0.
+    peaks_value_SCVSR = 0.
 
     for i in range(nor_con_signals.size - 1):
         if SCSR[i] * SCSR[i + 1] < 0:
@@ -285,11 +291,11 @@ def gsr_preprocessing(signals):
     mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
     mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
 
-    features = np.concatenate(([mean, der_mean, neg_der_mean, neg_der_pro,
-                                local_min, avg_rising_time], power_0_24,
-                               [zcr_SCSR, zcr_SCVSR, mean_peak_SCSR, mean_peak_SCVSR]))
+    # features = np.concatenate(([mean, der_mean, neg_der_mean, neg_der_pro,
+    #                             local_min, avg_rising_time], power_0_24,
+    #                            [zcr_SCSR, zcr_SCVSR, mean_peak_SCSR, mean_peak_SCVSR]))
 
-    print("There are {} GSR features".format(features.size))
+    # print("There are {} GSR features".format(features.size))
 
     features = {
         'mean_sr': mean,
