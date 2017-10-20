@@ -18,15 +18,20 @@ def fisher(features,label):
 	Fisher=(abs(mean_features0-mean_features1))/std_sum
 	Fisher=np.array(Fisher)
 	print(Fisher.shape)
-	return Fisher
+	
 
 	#sort the fisher from small to large
 
-	feature_idx=np.arange(212)
+	feature_idx=np.arange(data.shape[1])
 	Fisher_sorted = np.array(Fisher).argsort()
 	#####################################################
 	sorted_feature_idx = feature_idx[Fisher_sorted[::-1]]
+	return sorted_feature_idx
 	#####################################################
+
+	
+	
+
 
 #########add this at line 82!!!!######################
 train_a_labels=np.array(train_a_labels)
