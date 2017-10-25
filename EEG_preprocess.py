@@ -20,26 +20,26 @@ def find_freq_interval(f, Pxx_den,lowerbound,upperbound):
 def compute_PSD(data, fs, nperseg):
 	data = np.transpose(data) # each channel in a row
 	
-	theta_power 		= np.zeros(data.shape[0])
-	slow_alpha_power 	= np.zeros(data.shape[0])
-	alpha_power 		= np.zeros(data.shape[0])
-	beta_power 			= np.zeros(data.shape[0])
-	gamma_power 		= np.zeros(data.shape[0])
+	theta_power 		= np.array([])
+	slow_alpha_power 	= np.array([])
+	alpha_power 		= np.array([])
+	beta_power 			= np.array([])
+	gamma_power 		= np.array([])
 	
 	for i in range(data.shape[0]):
 		f , Pxx_den = signal.welch(data[i], fs, nperseg = nperseg)
-		theta_power[i] 		= find_freq_interval(f, Pxx_den, 3, 7)
-		slow_alpha_power[i] = find_freq_interval(f, Pxx_den, 8, 10)
-		alpha_power[i] 		= find_freq_interval(f, Pxx_den, 8, 13)
-		beta_power[i]		= find_freq_interval(f, Pxx_den, 14, 29)
-		gamma_power[i]		= find_freq_interval(f, Pxx_den, 30, 47)
+		theta_power 		= np.append(theta_power,find_freq_interval(f, Pxx_den, 3, 7))
+		slow_alpha_power 	= np.append(slow_alpha_power,find_freq_interval(f, Pxx_den, 8, 10))
+		alpha_power 		= np.append(alpha_power,find_freq_interval(f, Pxx_den, 8, 13))
+		beta_power			= np.append(beta_power,find_freq_interval(f, Pxx_den, 14, 29))
+		gamma_power			= np.append(gamma_power,find_freq_interval(f, Pxx_den, 30, 47))
 
 	return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power
 
 def asymmetry(power):
-	asy_power = np.zeros(power.shape[0]/2)
-	for i in range(asy_power.shape[0]):
-		asy_power[i] = power[i]-power[13-i]
+	asy_power = np.array([])
+	for i in range(power.shape[0]/2):
+		asy_power = np.append(asy_power,power[i]-power[13-i])
 	
 	return asy_power
 
