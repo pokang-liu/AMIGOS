@@ -226,76 +226,76 @@ def ecg_preprocessing(signals):
 
 
 def gsr_preprocessing(signals):
-	''' Preprocessing for GSR signals '''
-	der_signals = np.gradient(signals)
-	con_signals = 1 / signals
-	nor_con_signals = (con_signals - np.mean(con_signals)) / np.std(con_signals)
+    ''' Preprocessing for GSR signals '''
+    der_signals = np.gradient(signals)
+    con_signals = 1 / signals
+    nor_con_signals = (con_signals - np.mean(con_signals)) / np.std(con_signals)
 
-	mean = np.mean(signals)
-	der_mean = np.mean(der_signals)
-	neg_der_mean = np.mean(der_signals[der_signals < 0])
-	neg_der_pro = der_signals[der_signals < 0].size / der_signals.size
+    mean = np.mean(signals)
+    der_mean = np.mean(der_signals)
+    neg_der_mean = np.mean(der_signals[der_signals < 0])
+    neg_der_pro = der_signals[der_signals < 0].size / der_signals.size
 
-	local_min = 0
-	for i in range(signals.shape[0] - 1):
-		if i == 0:
-			continue
-		if signals[i - 1] > signals[i] and signals[i] < signals[i + 1]:
-			local_min += 1
+    local_min = 0
+    for i in range(signals.shape[0] - 1):
+        if i == 0:
+            continue
+        if signals[i - 1] > signals[i] and signals[i] < signals[i + 1]:
+            local_min += 1
 
-	rising_time = 0
-	rising_cnt = 0
-	for i in range(der_signals.size - 1):
-		if der_signals[i] > 0 and der_signals[i + 1] < 0:
-			rising_cnt += 1
-		else:
-			rising_time += 1
+    rising_time = 0
+    rising_cnt = 0
+    for i in range(der_signals.size - 1):
+        if der_signals[i] > 0 and der_signals[i + 1] < 0:
+            rising_cnt += 1
+        else:
+            rising_time += 1
 
-	avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
+    avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
 
-	gsr_fourier = np.fft.fft(signals)
-	gsr_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
-	positive_gsr_freq_idx = gsr_freq_idx[:(int((gsr_freq_idx.shape[0] + 1) / 2))]
+    gsr_fourier = np.fft.fft(signals)
+    gsr_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
+    positive_gsr_freq_idx = gsr_freq_idx[:(int((gsr_freq_idx.shape[0] + 1) / 2))]
 
-	power_0_24 = []
-	for i in range(21):
-		power_0_24.append(spectrum_power(gsr_fourier,
-										 (filter(positive_gsr_freq_idx,
-												 0 + (i * 0.8 / 7),
-												 0.1 + (i * 0.8 / 7)))))
+    power_0_24 = []
+    for i in range(21):
+        power_0_24.append(spectrum_power(gsr_fourier,
+                                         (filter(positive_gsr_freq_idx,
+                                                 0 + (i * 0.8 / 7),
+                                                 0.1 + (i * 0.8 / 7)))))
 
-	SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
-	SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
+    SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
+    SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
 
-	zero_cross_SCSR = 0
-	zero_cross_SCVSR = 0
-	peaks_cnt_SCSR = 0
-	peaks_cnt_SCVSR = 0
-	peaks_value_SCSR = 0.
-	peaks_value_SCVSR = 0.
+    zero_cross_SCSR = 0
+    zero_cross_SCVSR = 0
+    peaks_cnt_SCSR = 0
+    peaks_cnt_SCVSR = 0
+    peaks_value_SCSR = 0.
+    peaks_value_SCVSR = 0.
 
-	zc_idx_SCSR 	= np.array([],int) # must be int, otherwise it will be float
-	zc_idx_SCVSR 	= np.array([],int)
-	for i in range(nor_con_signals.size - 1):
-		if SCSR[i] * next((j for j in SCSR[i+1:] if j != 0), 0) < 0:
-			zero_cross_SCSR 	+= 1
-			zc_idx_SCSR 		= np.append(zc_idx_SCSR,i+1)
-		if SCVSR[i]*next((j for j in SCVSR[i+1:] if j != 0), 0) < 0:
-			zero_cross_SCVSR 	+= 1
-			zc_idx_SCVSR 		= np.append(zc_idx_SCVSR,i)
- 			
-	for i in range(zc_idx_SCSR.size-1):
- 		peaks_value_SCSR 	+= np.absolute(SCSR[zc_idx_SCSR[i]:zc_idx_SCSR[i+1]]).max()
- 		peaks_cnt_SCSR 		+= 1
-	for i in range(zc_idx_SCVSR.size-1):
- 		peaks_value_SCVSR	+= np.absolute(SCSR[zc_idx_SCVSR[i]:zc_idx_SCVSR[i+1]]).max()
- 		peaks_cnt_SCVSR 	+= 1
+    zc_idx_SCSR = np.array([], int)  # must be int, otherwise it will be float
+    zc_idx_SCVSR = np.array([], int)
+    for i in range(nor_con_signals.size - 1):
+        if SCSR[i] * next((j for j in SCSR[i + 1:] if j != 0), 0) < 0:
+            zero_cross_SCSR += 1
+            zc_idx_SCSR = np.append(zc_idx_SCSR, i + 1)
+        if SCVSR[i] * next((j for j in SCVSR[i + 1:] if j != 0), 0) < 0:
+            zero_cross_SCVSR += 1
+            zc_idx_SCVSR = np.append(zc_idx_SCVSR, i)
 
-	zcr_SCSR = zero_cross_SCSR / (nor_con_signals.size / 128)
-	zcr_SCVSR = zero_cross_SCVSR / (nor_con_signals.size / 128)
+    for i in range(zc_idx_SCSR.size - 1):
+        peaks_value_SCSR += np.absolute(SCSR[zc_idx_SCSR[i]:zc_idx_SCSR[i + 1]]).max()
+        peaks_cnt_SCSR += 1
+    for i in range(zc_idx_SCVSR.size - 1):
+        peaks_value_SCVSR += np.absolute(SCSR[zc_idx_SCVSR[i]:zc_idx_SCVSR[i + 1]]).max()
+        peaks_cnt_SCVSR += 1
 
-	mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
-	mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
+    zcr_SCSR = zero_cross_SCSR / (nor_con_signals.size / 128)
+    zcr_SCVSR = zero_cross_SCVSR / (nor_con_signals.size / 128)
+
+    mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
+    mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
 
     # features = np.concatenate(([mean, der_mean, neg_der_mean, neg_der_pro,
     #                             local_min, avg_rising_time], power_0_24,
@@ -303,47 +303,47 @@ def gsr_preprocessing(signals):
 
     # print("There are {} GSR features".format(features.size))
 
-	features = {
-		'mean_sr': mean,
-		'mean_sr_der': der_mean,
-		'mean_sr_neg_der': neg_der_mean,
-		'pro_neg_der': neg_der_pro,
-		'local_min_gsr': local_min,
-		'avg_rising_time': avg_rising_time,
-		'power_0_24': power_0_24,
-		'zcr_SCSR': zcr_SCSR,
-		'zcr_SCVSR': zcr_SCVSR,
-		'mean_peak_SCSR': mean_peak_SCSR,
-		'mean_peak_SCVSR': mean_peak_SCVSR
-	}
+    features = {
+        'mean_sr': mean,
+        'mean_sr_der': der_mean,
+        'mean_sr_neg_der': neg_der_mean,
+        'pro_neg_der': neg_der_pro,
+        'local_min_gsr': local_min,
+        'avg_rising_time': avg_rising_time,
+        'power_0_24': power_0_24,
+        'zcr_SCSR': zcr_SCSR,
+        'zcr_SCVSR': zcr_SCVSR,
+        'mean_peak_SCSR': mean_peak_SCSR,
+        'mean_peak_SCVSR': mean_peak_SCVSR
+    }
 
-	return features
+    return features
 
 
 def read_dataset(path):
-	''' Read AMIGOS dataset '''
-	amigos_data = dict()
+    ''' Read AMIGOS dataset '''
+    amigos_data = dict()
 
-	for sid in range(SUBJECT_NUM):
-		for vid in range(VIDEO_NUM):
-			if (sid + 1, vid + 1) in MISSING_DATA:
-				print("Skipping {}_{}.csv".format(sid + 1, vid + 1))
-				continue
-			print('Reading {}_{}.csv'.format(sid + 1, vid + 1))
-			signals = np.genfromtxt(os.path.join(path, "{}_{}.csv".format(sid + 1, vid + 1)),
-									delimiter=',')
-			eeg_signals = signals[:, :14]
-			ecg_signals = signals[:, 14]  # Column 14 or 15
-			gsr_signals = signals[:, -1]
+    for sid in range(SUBJECT_NUM):
+        for vid in range(VIDEO_NUM):
+            if (sid + 1, vid + 1) in MISSING_DATA:
+                print("Skipping {}_{}.csv".format(sid + 1, vid + 1))
+                continue
+            print('Reading {}_{}.csv'.format(sid + 1, vid + 1))
+            signals = np.genfromtxt(os.path.join(path, "{}_{}.csv".format(sid + 1, vid + 1)),
+                                    delimiter=',')
+            eeg_signals = signals[:, :14]
+            ecg_signals = signals[:, 14]  # Column 14 or 15
+            gsr_signals = signals[:, -1]
 
-			eeg_features = eeg_preprocessing(eeg_signals)
-			ecg_features = ecg_preprocessing(ecg_signals)
-			gsr_features = gsr_preprocessing(gsr_signals)
+            eeg_features = eeg_preprocessing(eeg_signals)
+            ecg_features = ecg_preprocessing(ecg_signals)
+            gsr_features = gsr_preprocessing(gsr_signals)
 
-			features = {**eeg_features, **ecg_features, **gsr_features}
-			amigos_data["{}_{}".format(sid + 1, vid + 1)] = features
+            features = {**eeg_features, **ecg_features, **gsr_features}
+            amigos_data["{}_{}".format(sid + 1, vid + 1)] = features
 
-	return amigos_data
+    return amigos_data
 
 
 def main():
