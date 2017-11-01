@@ -151,11 +151,11 @@ def ecg_preprocessing(signals):
 
     IBI = np.array([])
     for i in range(len(rpeaks) - 1):
-        IBI = np.append(IBI, (rpeaks[i + 1] - rpeaks[i]) / 128)
+        IBI = np.append(IBI, (rpeaks[i + 1] - rpeaks[i]) / 128.0)
 
     heart_rate = np.array([])
     for i in range(len(IBI)):
-        append_value = 1 / IBI[i] if IBI[i] != 0 else 0
+        append_value = 60.0 / IBI[i] if IBI[i] != 0 else 0
         heart_rate = np.append(heart_rate, append_value)
 
     mean_IBI = np.mean(IBI)
@@ -166,10 +166,9 @@ def ecg_preprocessing(signals):
     per_above_IBI = IBI[IBI > mean_IBI + std_IBI].size / IBI.size
     per_below_IBI = IBI[IBI < mean_IBI - std_IBI].size / IBI.size
     
-    # !!! the fs of IBI = 256?
-    power_001_008=getBand_Power(IBI,fs=256.,scaling='spectrum',0.01,0.08)
-    power_008_015=getBand_Power(IBI,fs=256.,scaling='spectrum',0.08,0.15)
-    power_015_050=getBand_Power(IBI,fs=256.,scaling='spectrum',0.15,0.50)
+    power_001_008=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.01,0.08)
+    power_008_015=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.08,0.15)
+    power_015_050=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.15,0.50)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
@@ -247,11 +246,8 @@ def gsr_preprocessing(signals):
 
     power_0_24 = []
     for i in range(21):
-        power_0_24.append(spectrum_power(gsr_fourier,
-                                         (filter(positive_gsr_freq_idx,
-                                                 0 + (i * 0.8 / 7),
-                                                 0.1 + (i * 0.8 / 7)))))
-
+        power_0_24.append(getBand_Power(signals,fs=128.,scaling='spectrum',0+(i*0.8/7),0.1+(i*0.8/7)))
+        
     SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
     SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
 
