@@ -18,7 +18,7 @@ warnings.filterwarnings(action="ignore", module="scipy", message="^internal gels
 
 SUBJECT_NUM = 40
 VIDEO_NUM = 16
-SAMPLE_RATE = 128
+SAMPLE_RATE = 128.
 MISSING_DATA = [(9, 1), (9, 2), (9, 3), (9, 6), (9, 7), (9, 9), (9, 11),
                 (9, 12), (9, 13), (9, 15), (9, 16), (12, 5), (21, 2), (21, 11),
                 (22, 16), (23, 1), (23, 5), (23, 7), (23, 9), (23, 12), (24, 1),
@@ -53,25 +53,20 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
-    
-def get_FiveBands_Power(signals,fs,scaling):
-    freqs, power = welch(signals, fs=fs, nperseg=128, scaling=scaling)
 
-    theta_power=float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[3, 7],decibel=False)))
+def getBand_Power(signals,fs,scaling,lower,upper):
+    freqs, power = welch(signals, fs=fs, nperseg=128, scaling=scaling)
+    Band_power = float(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[lower, upper],decibel=False)))
                             .flatten())
-    slow_alpha_power=float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False)))
-                            .flatten())                        
-    alpha_power=float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False)))
-                            .flatten())
-    beta_power=float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False)))
-                            .flatten())
-    gamma_power=float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[30, 17],decibel=False)))
-                            .flatten())        
+    return Band_power
+    
+def getFiveBands_Power(signals,fs,scaling):
+    theta_power = getBand_Power(signals,fs,scaling,3,7)
+    slow_alpha_power = getBand_Power(signals,fs,scaling,8,10)
+    alpha_power = getBand_Power(signals,fs,scaling,8,13)
+    beta_power = getBand_Power(signals,fs,scaling,14,29)
+    gamma_power = getBand_Power(signals,fs,scaling,30,17)
 
     return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power 
 
@@ -101,11 +96,11 @@ def eeg_preprocessing(signals):
     gamma_spa = []
 
     for channel_signals in trans_signals:
-        psd = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='density')
+        psd = getFiveBands_Power(channel_signals,fs=128.,scaling='density')
         for band,band_list in zip(psd,psd_list):
             band_list.append(log(band))
 
-        spec_power = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='spectrum')
+        spec_power = getFiveBands_Power(channel_signals,fs=128.,scaling='spectrum')
         for band,band_list in zip(spec_power,spec_power_list):
             band_list.append(band)
 
@@ -146,20 +141,13 @@ def eeg_preprocessing(signals):
 
 def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
-    ecg_all = ecg.ecg(signal=signals, sampling_rate=128., show=False)
+    ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
 
-    rpeaks = ecg_all['rpeaks']
-
-    ecg_fourier = np.fft.fft(signals)
-    ecg_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
-    positive_ecg_freq_idx = ecg_freq_idx[:(int((ecg_freq_idx.shape[0] + 1) / 2))]
+    rpeaks = ecg_all['rpeaks'] # R-peak location indices.
 
     power_0_6 = []
     for i in range(60):
-        power_0_6.append(spectrum_power(ecg_fourier,
-                                        (filter(positive_ecg_freq_idx,
-                                                0 + (i * 0.1),
-                                                0.1 + (i * 0.1)))))
+        power_0_6.append(getBand_Power(signals,fs=256.,scaling='spectrum',0+(i * 0.1),0.1+(i * 0.1)))
 
     IBI = np.array([])
     for i in range(len(rpeaks) - 1):
@@ -177,17 +165,11 @@ def ecg_preprocessing(signals):
     kurt_IBI = kurtosis(IBI)
     per_above_IBI = IBI[IBI > mean_IBI + std_IBI].size / IBI.size
     per_below_IBI = IBI[IBI < mean_IBI - std_IBI].size / IBI.size
-
-    IBI_fourier = np.fft.fft(IBI)
-    IBI_freq_idx = np.fft.fftfreq(IBI.size, d=(mean_IBI / 128))
-    positive_IBI_freq_idx = IBI_freq_idx[:(int((IBI_freq_idx.shape[0] + 1) / 2))]
-
-    power_001_008 = spectrum_power(IBI_fourier,
-                                   np.array(filter(positive_IBI_freq_idx, 0.01, 0.08)))
-    power_008_015 = spectrum_power(IBI_fourier,
-                                   np.array(filter(positive_IBI_freq_idx, 0.08, 0.15)))
-    power_015_050 = spectrum_power(IBI_fourier,
-                                   np.array(filter(positive_IBI_freq_idx, 0.15, 0.5)))
+    
+    # !!! the fs of IBI = 256?
+    power_001_008=getBand_Power(IBI,fs=256.,scaling='spectrum',0.01,0.08)
+    power_008_015=getBand_Power(IBI,fs=256.,scaling='spectrum',0.08,0.15)
+    power_015_050=getBand_Power(IBI,fs=256.,scaling='spectrum',0.15,0.50)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
