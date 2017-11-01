@@ -8,8 +8,9 @@ Functions for Preprocessing
 import os
 import pickle
 import warnings
-from biosppy.signals import ecg, tools
 import numpy as np
+from math import log
+from biosppy.signals import ecg, tools
 from scipy.signal import butter, lfilter, filtfilt, detrend, welch
 from scipy.stats import skew, kurtosis
 
@@ -56,21 +57,21 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 def get_FiveBands_Power(signals,fs,scaling):
     freqs, power = welch(signals, fs=fs, nperseg=128, scaling=scaling)
 
-    theta_power=list(np.array
+    theta_power=float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[3, 7],decibel=False)))
                             .flatten())
-    slow_alpha_power=list(np.array
+    slow_alpha_power=float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False)))
                             .flatten())                        
-    alpha_power=list(np.array
+    alpha_power=float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False)))
                             .flatten())
-    beta_power=list(np.array
+    beta_power=float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False)))
                             .flatten())
-    gamma_power=list(np.array
+    gamma_power=float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[30, 17],decibel=False)))
-                            .flatten())
+                            .flatten())        
 
     return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power 
 
@@ -102,7 +103,7 @@ def eeg_preprocessing(signals):
     for channel_signals in trans_signals:
         psd = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='density')
         for band,band_list in zip(psd,psd_list):
-            band_list.append(band)
+            band_list.append(log(band))
 
         spec_power = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='spectrum')
         for band,band_list in zip(spec_power,spec_power_list):
