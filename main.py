@@ -5,6 +5,7 @@
 Affective Computing with AMIGOS Dataset
 '''
 
+from argparse import ArgumentParser
 import os
 import pickle
 import numpy as np
@@ -25,6 +26,10 @@ if not os.path.exists(MODEL_DIR):
 
 def main():
     ''' Main function '''
+    parser = ArgumentParser(description='Affective Computing with AMIGOS Dataset')
+    parser.add_argument('--feature', type=str, choices=['eeg', 'ecg', 'gsr', 'all'], default='all', help='choose type of modality')
+    args = parser.parse_args()
+
     with open(os.path.join('data', 'features.p'), 'rb') as pickle_file:
         amigos_data = pickle.load(pickle_file)
 
@@ -45,14 +50,26 @@ def main():
         train_data = np.array([])
         val_data = np.array([])
 
-        for key, data_dict in amigos_data.items():
-            tmp_array = np.array([])
-            for _, item in data_dict.items():
-                tmp_array = np.append(tmp_array, item)
-            if key.split('_')[0] == str(i + 1):
-                val_data = np.vstack((val_data, tmp_array)) if val_data.size else tmp_array
+        for s_key, data_dict in amigos_data.items():
+            if args.feature == 'all':
+                tmp_array = np.array([])
+                for _, f_dict in data_dict.items():
+                    for _, item in f_dict.items():
+                        tmp_array = np.append(tmp_array, item)
+
+                if s_key.split('_')[0] == str(i + 1):
+                    val_data = np.vstack((val_data, tmp_array)) if val_data.size else tmp_array
+                else:
+                    train_data = np.vstack((train_data, tmp_array)) if train_data.size else tmp_array
             else:
-                train_data = np.vstack((train_data, tmp_array)) if train_data.size else tmp_array
+                tmp_array = np.array([])
+                for _, item in data_dict[args.feature].items():
+                    tmp_array = np.append(tmp_array, item)
+
+                if s_key.split('_')[0] == str(i + 1):
+                    val_data = np.vstack((val_data, tmp_array)) if val_data.size else tmp_array
+                else:
+                    train_data = np.vstack((train_data, tmp_array)) if train_data.size else tmp_array
 
         train_data_max = np.max(train_data, axis=0)
         train_data_min = np.min(train_data, axis=0)
@@ -60,6 +77,10 @@ def main():
         val_data_max = np.max(val_data, axis=0)
         val_data_min = np.min(val_data, axis=0)
         val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
+
+        print(train_data.shape)
+        print(val_data.shape)
+        input()
 
         train_a_labels = []
         train_v_labels = []

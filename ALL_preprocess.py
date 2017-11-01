@@ -114,27 +114,27 @@ def eeg_preprocessing(signals):
                         (beta_power[i] + beta_power[13 - i]))
         gamma_spa.append((gamma_power[i] - gamma_power[13 - i]) /
                          (gamma_power[i] + gamma_power[13 - i]))
-						 
+
 	# trans_signals = np.transpose(signals)
-	
+
 	# theta_PSD = []
 	# slow_alpha_PSD = []
 	# alpha_PSD = []
 	# beta_PSD = []
 	# gamma_PSD = []
-    	
+
 	# theta_spec_power = []
 	# slow_alpha_spec_power = []
 	# alpha_spec_power = []
 	# beta_spec_power = []
 	# gamma_spec_power = []
-    
+
 	# theta_spa = []
 	# slow_alpha_spa = []
 	# alpha_spa = []
 	# beta_spa 	= []
 	# gamma_spa = []
-	
+
 	# for channel_signals in trans_signals:
 		# freqs, power  = welch(channel_signals, fs=SAMPLE_RATE, nperseg=128,scaling='density')
 		# theta_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[3, 7],decibel=False))
@@ -142,26 +142,26 @@ def eeg_preprocessing(signals):
 		# alpha_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False))
 		# beta_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False))
 		# gamma_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[30, 47],decibel=False))
-		
+
 		# freqs_, power_  = welch(channel_signals, fs=SAMPLE_RATE, nperseg=128,scaling='spectrum')
 		# theta_spec_power.append(tools.band_power(freqs=freqs_,power=power_,frequency=[3, 7],decibel=False))
 		# slow_alpha_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False))
 		# alpha_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False))
 		# beta_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False))
 		# gamma_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[30, 47],decibel=False))
-		
+
 	# theta_power=list(np.array(theta_PSD).flatten())
 	# slow_alpha_power=list(np.array(slow_alpha_PSD).flatten())
 	# alpha_power=list(np.array(alpha_PSD).flatten())
 	# beta_power=list(np.array(beta_PSD).flatten())
 	# gamma_power=list(np.array(gamma_PSD).flatten())
-	
+
 	# theta_spec_power=list(np.array(theta_spec_power).flatten())
 	# slow_alpha_spec_power=list(np.array(slow_alpha_spec_power).flatten())
 	# alpha_spec_power=list(np.array(alpha_spec_power).flatten())
 	# beta_spec_power=list(np.array(beta_spec_power).flatten())
 	# gamma_spec_power=list(np.array(gamma_spec_power).flatten())
-	
+
 	# for i in range(7):
 		# theta_spa.append((theta_spec_power[i] - theta_spec_power[13 - i]) /
 						 # (theta_spec_power[i] + theta_spec_power[13 - i]))
@@ -399,7 +399,11 @@ def read_dataset(path):
             ecg_features = ecg_preprocessing(ecg_signals)
             gsr_features = gsr_preprocessing(gsr_signals)
 
-            features = {**eeg_features, **ecg_features, **gsr_features}
+            features = {
+                'eeg': eeg_features,
+                'ecg': ecg_features,
+                'gsr': gsr_features
+            }
             amigos_data["{}_{}".format(sid + 1, vid + 1)] = features
 
     return amigos_data
