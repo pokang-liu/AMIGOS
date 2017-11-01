@@ -78,10 +78,6 @@ def main():
         val_data_min = np.min(val_data, axis=0)
         val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
 
-        print(train_data.shape)
-        print(val_data.shape)
-        input()
-
         train_a_labels = []
         train_v_labels = []
         val_a_labels = []
