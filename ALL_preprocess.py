@@ -26,24 +26,6 @@ MISSING_DATA = [(9, 1), (9, 2), (9, 3), (9, 6), (9, 7), (9, 9), (9, 11),
                 (33, 13), (33, 16)]
 
 
-def filter(spectrum, lower, upper):
-    ''' Get lower and upper index '''
-    lo_idx = (np.abs(spectrum - lower)).argmin()
-    up_idx = (np.abs(spectrum - upper)).argmin()
-
-    return [lo_idx, up_idx]
-
-
-def spectrum_power(spectrum, idx_pairs):
-    ''' Return power of specific range of index '''
-    lo_idx = idx_pairs[0]
-    up_idx = idx_pairs[1]
-    power = 0
-    spectrumbuf = spectrum[lo_idx:up_idx + 1]
-    for val in np.nditer(spectrumbuf):
-        power += abs(val * val)
-
-    return power
 
 
 def butter_highpass(cutoff, fs, order=5):
@@ -70,109 +52,73 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
+    
+def get_FiveBands_Power(signals,fs,scaling):
+    freqs, power = welch(signals, fs=fs, nperseg=128, scaling=scaling)
 
+    theta_power=list(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[3, 7],decibel=False)))
+                            .flatten())
+    slow_alpha_power=list(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False)))
+                            .flatten())                        
+    alpha_power=list(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False)))
+                            .flatten())
+    beta_power=list(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False)))
+                            .flatten())
+    gamma_power=list(np.array
+                        ((tools.band_power(freqs=freqs,power=power,frequency=[30, 17],decibel=False)))
+                            .flatten())
 
+    return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power 
+
+    
 def eeg_preprocessing(signals):
     ''' Preprocessing for EEG signals '''
     trans_signals = np.transpose(signals)
+
     theta_power = []
     slow_alpha_power = []
     alpha_power = []
     beta_power = []
     gamma_power = []
+    psd_list = [theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power]
 
-    for channel_signals in trans_signals:
-        eeg_fourier = np.fft.fft(channel_signals)
-        eeg_freq_idx = np.fft.fftfreq(channel_signals.size, d=(1 / 128))
-        positive_eeg_freq_idx = eeg_freq_idx[:(int((eeg_freq_idx.shape[0] + 1) / 2))]
-
-        theta_power.append(spectrum_power(eeg_fourier,
-                                          (filter(positive_eeg_freq_idx, 3, 7))))
-        slow_alpha_power.append(spectrum_power(eeg_fourier,
-                                               (filter(positive_eeg_freq_idx, 8, 10))))
-        alpha_power.append(spectrum_power(eeg_fourier,
-                                          (filter(positive_eeg_freq_idx, 8, 13))))
-        beta_power.append(spectrum_power(eeg_fourier,
-                                         (filter(positive_eeg_freq_idx, 14, 29))))
-        gamma_power.append(spectrum_power(eeg_fourier,
-                                          (filter(positive_eeg_freq_idx, 30, 47))))
+    theta_spec_power = []
+    slow_alpha_spec_power = []
+    alpha_spec_power = []
+    beta_spec_power = []
+    gamma_spec_power = []
+    spec_power_list = [theta_spec_power, slow_alpha_spec_power, alpha_spec_power, beta_spec_power, gamma_spec_power]
 
     theta_spa = []
     slow_alpha_spa = []
     alpha_spa = []
-    beta_spa = []
+    beta_spa 	= []
     gamma_spa = []
 
+    for channel_signals in trans_signals:
+        psd = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='density')
+        for band,band_list in zip(psd,psd_list):
+            band_list.append(band)
+
+        spec_power = get_FiveBands_Power(channel_signals,fs=SAMPLE_RATE,scaling='spectrum')
+        for band,band_list in zip(spec_power,spec_power_list):
+            band_list.append(band)
+
     for i in range(7):
-        theta_spa.append((theta_power[i] - theta_power[13 - i]) /
-                         (theta_power[i] + theta_power[13 - i]))
-        slow_alpha_spa.append((slow_alpha_power[i] - slow_alpha_power[13 - i]) /
-                              (slow_alpha_power[i] + slow_alpha_power[13 - i]))
-        alpha_spa.append((alpha_power[i] - alpha_power[13 - i]) /
-                         (alpha_power[i] + alpha_power[13 - i]))
-        beta_spa.append((beta_power[i] - beta_power[13 - i]) /
-                        (beta_power[i] + beta_power[13 - i]))
-        gamma_spa.append((gamma_power[i] - gamma_power[13 - i]) /
-                         (gamma_power[i] + gamma_power[13 - i]))
-
-	# trans_signals = np.transpose(signals)
-
-	# theta_PSD = []
-	# slow_alpha_PSD = []
-	# alpha_PSD = []
-	# beta_PSD = []
-	# gamma_PSD = []
-
-	# theta_spec_power = []
-	# slow_alpha_spec_power = []
-	# alpha_spec_power = []
-	# beta_spec_power = []
-	# gamma_spec_power = []
-
-	# theta_spa = []
-	# slow_alpha_spa = []
-	# alpha_spa = []
-	# beta_spa 	= []
-	# gamma_spa = []
-
-	# for channel_signals in trans_signals:
-		# freqs, power  = welch(channel_signals, fs=SAMPLE_RATE, nperseg=128,scaling='density')
-		# theta_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[3, 7],decibel=False))
-		# slow_alpha_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False))
-		# alpha_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False))
-		# beta_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False))
-		# gamma_PSD.append(tools.band_power(freqs=freqs,power=power,frequency=[30, 47],decibel=False))
-
-		# freqs_, power_  = welch(channel_signals, fs=SAMPLE_RATE, nperseg=128,scaling='spectrum')
-		# theta_spec_power.append(tools.band_power(freqs=freqs_,power=power_,frequency=[3, 7],decibel=False))
-		# slow_alpha_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 10],decibel=False))
-		# alpha_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[8, 13],decibel=False))
-		# beta_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[14, 29],decibel=False))
-		# gamma_spec_power.append(tools.band_power(freqs=freqs,power=power,frequency=[30, 47],decibel=False))
-
-	# theta_power=list(np.array(theta_PSD).flatten())
-	# slow_alpha_power=list(np.array(slow_alpha_PSD).flatten())
-	# alpha_power=list(np.array(alpha_PSD).flatten())
-	# beta_power=list(np.array(beta_PSD).flatten())
-	# gamma_power=list(np.array(gamma_PSD).flatten())
-
-	# theta_spec_power=list(np.array(theta_spec_power).flatten())
-	# slow_alpha_spec_power=list(np.array(slow_alpha_spec_power).flatten())
-	# alpha_spec_power=list(np.array(alpha_spec_power).flatten())
-	# beta_spec_power=list(np.array(beta_spec_power).flatten())
-	# gamma_spec_power=list(np.array(gamma_spec_power).flatten())
-
-	# for i in range(7):
-		# theta_spa.append((theta_spec_power[i] - theta_spec_power[13 - i]) /
-						 # (theta_spec_power[i] + theta_spec_power[13 - i]))
-		# slow_alpha_spa.append((slow_alpha_spec_power[i] - slow_alpha_spec_power[13 - i]) /
-							  # (slow_alpha_spec_power[i] + slow_alpha_spec_power[13 - i]))
-		# alpha_spa.append((alpha_spec_power[i] - alpha_spec_power[13 - i]) /
-						 # (alpha_spec_power[i] + alpha_spec_power[13 - i]))
-		# beta_spa.append((beta_spec_power[i] - beta_spec_power[13 - i]) /
-						# (beta_spec_power[i] + beta_spec_power[13 - i]))
-		# gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
-						 # (gamma_spec_power[i] + gamma_spec_power[13 - i]))
+        theta_spa.append((theta_spec_power[i] - theta_spec_power[13 - i]) /
+                         (theta_spec_power[i] + theta_spec_power[13 - i]))
+        slow_alpha_spa.append((slow_alpha_spec_power[i] - slow_alpha_spec_power[13 - i]) /
+                              (slow_alpha_spec_power[i] + slow_alpha_spec_power[13 - i]))
+        alpha_spa.append((alpha_spec_power[i] - alpha_spec_power[13 - i]) /
+                         (alpha_spec_power[i] + alpha_spec_power[13 - i]))
+        beta_spa.append((beta_spec_power[i] - beta_spec_power[13 - i]) /
+                        (beta_spec_power[i] + beta_spec_power[13 - i]))
+        gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
+                         (gamma_spec_power[i] + gamma_spec_power[13 - i]))
 
     # features = np.concatenate((theta_power, alpha_low_power,
     #                            alpha_high_power, beta_power,
@@ -420,3 +366,4 @@ def main():
 if __name__ == '__main__':
 
     main()
+    
