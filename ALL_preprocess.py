@@ -53,6 +53,12 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
+    
+def getfreqs_power(signals,fs):
+    spectrum     = tools.power_spectrum(signal=signals, sampling_rate=fs, decibel=False)
+    freqs        = spectrum['freqs']
+    power        = spectrum['power']    
+    return freqs, power
 
 def getBand_Power(freqs,power,lower,upper):
     Band_power = float(np.array
@@ -143,13 +149,10 @@ def eeg_preprocessing(signals):
 def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
     ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
-
     rpeaks = ecg_all['rpeaks'] # R-peak location indices.
-
     
-    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=256., decibel=False)
-    freqs         = spectrum['freqs']
-    power         = spectrum['power']
+    # ECG
+    freqs, power = getfreqs_power(signals=signals,fs=256.)
     power_0_6 = []
     for i in range(60):
         power_0_6.append(getBand_Power(freqs,power,lower=0+(i * 0.1),upper=0.1+(i * 0.1)))
@@ -171,9 +174,8 @@ def ecg_preprocessing(signals):
     per_above_IBI = IBI[IBI > mean_IBI + std_IBI].size / IBI.size
     per_below_IBI = IBI[IBI < mean_IBI - std_IBI].size / IBI.size
     
-    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=256., decibel=False)
-    freqs_        = spectrum['freqs']
-    power_        = spectrum['power']    
+    # IBI
+    freqs_, power_ = getfreqs_power(signals=IBI,fs=1.0/mean_IBI)
     power_001_008=getBand_Power(freqs_,power_,lower=0.01,upper=0.08)
     power_008_015=getBand_Power(freqs_,power_,lower=0.08,upper=0.15)
     power_015_050=getBand_Power(freqs_,power_,lower=0.15,upper=0.50)
@@ -248,10 +250,7 @@ def gsr_preprocessing(signals):
 
     avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
 
-    
-    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=128., decibel=False)
-    freqs         = spectrum['freqs']
-    power         = spectrum['power']
+    freqs, power = getfreqs_power(signals=signals,fs=128.)
     power_0_24 = []
     for i in range(21):
         power_0_24.append(getBand_Power(freqs,power,lower=0+(i*0.8/7),upper=0.1+(i*0.8/7)))
@@ -283,8 +282,8 @@ def gsr_preprocessing(signals):
         peaks_value_SCVSR += np.absolute(SCVSR[zc_idx_SCVSR[i]:zc_idx_SCVSR[i + 1]]).max()
         peaks_cnt_SCVSR += 1
 
-    zcr_SCSR = zero_cross_SCSR / (nor_con_signals.size / 128)
-    zcr_SCVSR = zero_cross_SCVSR / (nor_con_signals.size / 128)
+    zcr_SCSR = zero_cross_SCSR / (nor_con_signals.size / 128.)
+    zcr_SCVSR = zero_cross_SCVSR / (nor_con_signals.size / 128.)
 
     mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
     mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
