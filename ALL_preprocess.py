@@ -54,19 +54,18 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     y = lfilter(b, a, data)
     return y
 
-def getBand_Power(signals,fs,scaling,lower,upper):
-    freqs, power = welch(signals, fs=fs, nperseg=128, scaling=scaling)
+def getBand_Power(freqs,power,lower,upper):
     Band_power = float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[lower, upper],decibel=False)))
                             .flatten())
     return Band_power
     
-def getFiveBands_Power(signals,fs,scaling):
-    theta_power = getBand_Power(signals,fs,scaling,3,7)
-    slow_alpha_power = getBand_Power(signals,fs,scaling,8,10)
-    alpha_power = getBand_Power(signals,fs,scaling,8,13)
-    beta_power = getBand_Power(signals,fs,scaling,14,29)
-    gamma_power = getBand_Power(signals,fs,scaling,30,17)
+def getFiveBands_Power(freqs,power):
+    theta_power = getBand_Power(freqs,power,3,7)
+    slow_alpha_power = getBand_Power(freqs,power,8,10)
+    alpha_power = getBand_Power(freqs,power,8,13)
+    beta_power = getBand_Power(freqs,power,14,29)
+    gamma_power = getBand_Power(freqs,power,30,47)
 
     return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power 
 
@@ -95,12 +94,14 @@ def eeg_preprocessing(signals):
     beta_spa 	= []
     gamma_spa = []
 
-    for channel_signals in trans_signals:
-        psd = getFiveBands_Power(channel_signals,fs=128.,scaling='density')
+    for channel_signals in trans_signals:        
+        freqs, power = welch(channel_signals, fs=128., nperseg=128, scaling='density')
+        psd = getFiveBands_Power(freqs,power)
         for band,band_list in zip(psd,psd_list):
             band_list.append(log(band))
 
-        spec_power = getFiveBands_Power(channel_signals,fs=128.,scaling='spectrum')
+        freqs_, power_ = welch(channel_signals, fs=128., nperseg=128, scaling='spectrum')
+        spec_power = getFiveBands_Power(freqs_,power_)
         for band,band_list in zip(spec_power,spec_power_list):
             band_list.append(band)
 
@@ -145,9 +146,13 @@ def ecg_preprocessing(signals):
 
     rpeaks = ecg_all['rpeaks'] # R-peak location indices.
 
+    
+    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=256., decibel=False)
+    freqs         = spectrum['freqs']
+    power         = spectrum['power']
     power_0_6 = []
     for i in range(60):
-        power_0_6.append(getBand_Power(signals,fs=256.,scaling='spectrum',0+(i * 0.1),0.1+(i * 0.1)))
+        power_0_6.append(getBand_Power(freqs,power,lower=0+(i * 0.1),upper=0.1+(i * 0.1)))
 
     IBI = np.array([])
     for i in range(len(rpeaks) - 1):
@@ -166,9 +171,12 @@ def ecg_preprocessing(signals):
     per_above_IBI = IBI[IBI > mean_IBI + std_IBI].size / IBI.size
     per_below_IBI = IBI[IBI < mean_IBI - std_IBI].size / IBI.size
     
-    power_001_008=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.01,0.08)
-    power_008_015=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.08,0.15)
-    power_015_050=getBand_Power(IBI,fs=1.0/np.mean(IBI),scaling='spectrum',0.15,0.50)
+    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=256., decibel=False)
+    freqs_        = spectrum['freqs']
+    power_        = spectrum['power']    
+    power_001_008=getBand_Power(freqs_,power_,lower=0.01,upper=0.08)
+    power_008_015=getBand_Power(freqs_,power_,lower=0.08,upper=0.15)
+    power_015_050=getBand_Power(freqs_,power_,lower=0.15,upper=0.50)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
@@ -240,13 +248,13 @@ def gsr_preprocessing(signals):
 
     avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
 
-    gsr_fourier = np.fft.fft(signals)
-    gsr_freq_idx = np.fft.fftfreq(signals.size, d=(1 / 128))
-    positive_gsr_freq_idx = gsr_freq_idx[:(int((gsr_freq_idx.shape[0] + 1) / 2))]
-
+    
+    spectrum      = tools.power_spectrum(signal=signals, sampling_rate=128., decibel=False)
+    freqs         = spectrum['freqs']
+    power         = spectrum['power']
     power_0_24 = []
     for i in range(21):
-        power_0_24.append(getBand_Power(signals,fs=128.,scaling='spectrum',0+(i*0.8/7),0.1+(i*0.8/7)))
+        power_0_24.append(getBand_Power(freqs,power,lower=0+(i*0.8/7),upper=0.1+(i*0.8/7)))
         
     SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
     SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
