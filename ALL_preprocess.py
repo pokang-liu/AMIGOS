@@ -192,8 +192,8 @@ def ecg_preprocessing(signals):
     std_IBI = np.std(IBI)
     skew_IBI = skew(IBI)
     kurt_IBI = kurtosis(IBI)
-    per_above_IBI = IBI[IBI > mean_IBI + std_IBI].size / IBI.size
-    per_below_IBI = IBI[IBI < mean_IBI - std_IBI].size / IBI.size
+    per_above_IBI = float(IBI[IBI > mean_IBI + std_IBI].size)/float(IBI.size)
+    per_below_IBI = float(IBI[IBI < mean_IBI - std_IBI].size)/float(IBI.size)
     
     # IBI
     freqs_, power_ = getfreqs_power(signals=IBI,fs=1.0/mean_IBI)
@@ -205,10 +205,10 @@ def ecg_preprocessing(signals):
     std_heart_rate = np.std(heart_rate)
     skew_heart_rate = skew(heart_rate)
     kurt_heart_rate = kurtosis(heart_rate)
-    per_above_heart_rate = heart_rate[heart_rate >
-                                      mean_heart_rate + std_heart_rate].size / heart_rate.size
-    per_below_heart_rate = heart_rate[heart_rate <
-                                      mean_heart_rate - std_heart_rate].size / heart_rate.size
+    per_above_heart_rate = float(heart_rate[heart_rate >
+                                      mean_heart_rate + std_heart_rate].size) / float(heart_rate.size)
+    per_below_heart_rate = float(heart_rate[heart_rate <
+                                      mean_heart_rate - std_heart_rate].size) / float(heart_rate.size)
 
     # features = np.concatenate(([rms_IBI, mean_IBI], power_0_6,
     #                            [power_001_008, power_008_015,
