@@ -9,6 +9,7 @@ import os
 import pickle
 import warnings
 import numpy as np
+import matplotlib.pyplot as plt
 from math import log
 from biosppy.signals import ecg, tools
 from scipy.signal import butter, lfilter, filtfilt, detrend, welch
@@ -97,7 +98,7 @@ def eeg_preprocessing(signals):
     theta_spa = []
     slow_alpha_spa = []
     alpha_spa = []
-    beta_spa 	= []
+    beta_spa = []
     gamma_spa = []
 
     for channel_signals in trans_signals:        
@@ -123,10 +124,10 @@ def eeg_preprocessing(signals):
         gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
                          (gamma_spec_power[i] + gamma_spec_power[13 - i]))
 
-    # features = np.concatenate((theta_power, alpha_low_power,
-    #                            alpha_high_power, beta_power,
-    #                            gamma_power, theta_spa, alpha_low_spa,
-    #                            alpha_high_spa, beta_spa, gamma_spa))
+    # features = np.concatenate((theta_power, slow_alpha_power,
+    #                            alpha_power, beta_power,
+    #                            gamma_power, theta_spa, slow_alpha_spa,
+    #                            alpha_spa, beta_spa, gamma_spa))
 
     # print("There are {} EEG features".format(features.size))
 
@@ -142,6 +143,26 @@ def eeg_preprocessing(signals):
         'beta_spa': beta_spa,
         'gamma_spa': gamma_spa
     }
+    
+    # plot EEG signal and its PSD
+    # freqs, power = welch(EEG_signal[:,0], fs=128., nperseg=128, scaling='density')
+    # x = np.arange(0,1.0/128.0*EEG_signal.shape[0],1.0/128.0)
+
+    # plt.figure(figsize=(20,10))
+
+    # p1 = plt.subplot(211)
+    # p2 = plt.subplot(212)
+    # p1.plot(x,EEG_signal[:,0])
+    # p1.set_ylabel("amplitude")
+    # p1.set_xlabel("time(s)")
+    # p1.set_title("EEG")
+
+    # p2.plot(freqs,power)
+    # p2.set_ylabel("PSD")
+    # p2.set_xlabel("frequency(Hz)")
+    # p2.set_title("EEG")
+
+    # plt.show()
 
     return features
 
