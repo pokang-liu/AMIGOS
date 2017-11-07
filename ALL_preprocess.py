@@ -4,7 +4,7 @@
 '''
 Functions for Preprocessing
 '''
-
+import sys
 import os
 import pickle
 import warnings
@@ -55,12 +55,16 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     y = lfilter(b, a, data)
     return y
     
-def getfreqs_power(signals,fs):
-    spectrum     = tools.power_spectrum(signal=signals, sampling_rate=fs, decibel=False)
-    freqs        = spectrum['freqs']
-    power        = spectrum['power']    
-    return freqs, power
-
+def getfreqs_power(signals,fs,nperseg,scaling):
+    if scaling == "density":
+        freqs, power = welch(signals, fs=fs, nperseg=nperseg, scaling='density')            
+        return freqs, power
+    elif scaling == "spectrum":
+        freqs, power = welch(signals, fs=fs, nperseg=nperseg, scaling='spectrum')            
+        return freqs, power
+    else:
+        return 0,0
+        
 def getBand_Power(freqs,power,lower,upper):
     Band_power = float(np.array
                         ((tools.band_power(freqs=freqs,power=power,frequency=[lower, upper],decibel=False)))
@@ -102,12 +106,12 @@ def eeg_preprocessing(signals):
     gamma_spa = []
 
     for channel_signals in trans_signals:        
-        freqs, power = welch(channel_signals, fs=128., nperseg=128, scaling='density')
+        freqs, power = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='density')
         psd = getFiveBands_Power(freqs,power)
         for band,band_list in zip(psd,psd_list):
             band_list.append(log(band))
 
-        freqs_, power_ = welch(channel_signals, fs=128., nperseg=128, scaling='spectrum')
+        freqs_, power_ = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='spectrum')
         spec_power = getFiveBands_Power(freqs_,power_)
         for band,band_list in zip(spec_power,spec_power_list):
             band_list.append(band)
@@ -153,7 +157,7 @@ def ecg_preprocessing(signals):
     rpeaks = ecg_all['rpeaks'] # R-peak location indices.
     
     # ECG
-    freqs, power = getfreqs_power(signals=signals,fs=256.)
+    freqs, power = getfreqs_power(signals,fs=256.,nperseg=signals.size,scaling='spectrum')
     power_0_6 = []
     for i in range(60):
         power_0_6.append(getBand_Power(freqs,power,lower=0+(i * 0.1),upper=0.1+(i * 0.1)))
@@ -175,8 +179,8 @@ def ecg_preprocessing(signals):
     per_above_IBI = float(IBI[IBI > mean_IBI + std_IBI].size)/float(IBI.size)
     per_below_IBI = float(IBI[IBI < mean_IBI - std_IBI].size)/float(IBI.size)
     
-    # IBI
-    freqs_, power_ = getfreqs_power(signals=IBI,fs=1.0/mean_IBI)
+    # IBI    
+    freqs_, power_ = getfreqs_power(IBI,fs=1.0/mean_IBI,nperseg=IBI.size,scaling='spectrum')
     power_001_008=getBand_Power(freqs_,power_,lower=0.01,upper=0.08)
     power_008_015=getBand_Power(freqs_,power_,lower=0.08,upper=0.15)
     power_015_050=getBand_Power(freqs_,power_,lower=0.15,upper=0.50)
@@ -250,8 +254,8 @@ def gsr_preprocessing(signals):
             rising_time += 1
 
     avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
-
-    freqs, power = getfreqs_power(signals=signals,fs=128.)
+    
+    freqs, power = getfreqs_power(signals,fs=128.,nperseg=signals.size,scaling='spectrum')
     power_0_24 = []
     for i in range(21):
         power_0_24.append(getBand_Power(freqs,power,lower=0+(i*0.8/7),upper=0.1+(i*0.8/7)))
@@ -344,8 +348,8 @@ def read_dataset(path):
 
 def main():
     ''' Main function '''
-    amigos_data = read_dataset('data')
-
+    #amigos_data = read_dataset('data')
+    amigos_data = read_dataset('../AMIGOS_data')
     with open(os.path.join('data', 'features.p'), 'wb') as pickle_file:
         pickle.dump(amigos_data, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
