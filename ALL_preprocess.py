@@ -143,26 +143,6 @@ def eeg_preprocessing(signals):
         'beta_spa': beta_spa,
         'gamma_spa': gamma_spa
     }
-    
-    # plot EEG signal and its PSD
-    # freqs, power = welch(EEG_signal[:,0], fs=128., nperseg=128, scaling='density')
-    # x = np.arange(0,1.0/128.0*EEG_signal.shape[0],1.0/128.0)
-
-    # plt.figure(figsize=(20,10))
-
-    # p1 = plt.subplot(211)
-    # p2 = plt.subplot(212)
-    # p1.plot(x,EEG_signal[:,0])
-    # p1.set_ylabel("amplitude")
-    # p1.set_xlabel("time(s)")
-    # p1.set_title("EEG")
-
-    # p2.plot(freqs,power)
-    # p2.set_ylabel("PSD")
-    # p2.set_xlabel("frequency(Hz)")
-    # p2.set_title("EEG")
-
-    # plt.show()
 
     return features
 
@@ -246,13 +226,13 @@ def ecg_preprocessing(signals):
 def gsr_preprocessing(signals):
     ''' Preprocessing for GSR signals '''
     der_signals = np.gradient(signals)
-    con_signals = 1 / signals
+    con_signals = 1.0 / signals
     nor_con_signals = (con_signals - np.mean(con_signals)) / np.std(con_signals)
 
     mean = np.mean(signals)
     der_mean = np.mean(der_signals)
     neg_der_mean = np.mean(der_signals[der_signals < 0])
-    neg_der_pro = der_signals[der_signals < 0].size / der_signals.size
+    neg_der_pro = float(der_signals[der_signals < 0].size) / float(der_signals.size)
 
     local_min = 0
     for i in range(signals.shape[0] - 1):
