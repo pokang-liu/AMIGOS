@@ -330,7 +330,7 @@ def read_dataset(path):
                                     delimiter=',')
             eeg_signals = signals[:, :14]
             ecg_signals = signals[:, 14]  # Column 14 or 15
-            gsr_signals = signals[:, -1]
+            gsr_signals = signals[20:, -1] # ignore the first 20 data, since there is noise in it 
 
             eeg_features = eeg_preprocessing(eeg_signals)
             ecg_features = ecg_preprocessing(ecg_signals)
