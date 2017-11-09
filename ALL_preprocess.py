@@ -4,16 +4,17 @@
 '''
 Functions for Preprocessing
 '''
-import sys
+
+from math import log
 import os
 import pickle
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
-from math import log
-from biosppy.signals import ecg, tools
-from scipy.signal import butter, lfilter, filtfilt, detrend, welch
+from biosppy.signals import ecg
 from scipy.stats import skew, kurtosis
+
+from utils import butter_highpass_filter, butter_lowpass_filter, getfreqs_power, getBand_Power, getFiveBands_Power, detrend
 
 warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
 
@@ -28,59 +29,6 @@ MISSING_DATA = [(9, 1), (9, 2), (9, 3), (9, 6), (9, 7), (9, 9), (9, 11),
                 (33, 13), (33, 16)]
 
 
-
-
-def butter_highpass(cutoff, fs, order=5):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='high', analog=False)
-    return b, a
-
-
-def butter_highpass_filter(data, cutoff, fs, order=5):
-    b, a = butter_highpass(cutoff, fs, order=order)
-    y = filtfilt(b, a, data)
-    return y
-
-
-def butter_lowpass(cutoff, fs, order=5):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return b, a
-
-
-def butter_lowpass_filter(data, cutoff, fs, order=5):
-    b, a = butter_lowpass(cutoff, fs, order=order)
-    y = lfilter(b, a, data)
-    return y
-    
-def getfreqs_power(signals,fs,nperseg,scaling):
-    if scaling == "density":
-        freqs, power = welch(signals, fs=fs, nperseg=nperseg, scaling='density')            
-        return freqs, power
-    elif scaling == "spectrum":
-        freqs, power = welch(signals, fs=fs, nperseg=nperseg, scaling='spectrum')            
-        return freqs, power
-    else:
-        return 0,0
-        
-def getBand_Power(freqs,power,lower,upper):
-    Band_power = float(np.array
-                        ((tools.band_power(freqs=freqs,power=power,frequency=[lower, upper],decibel=False)))
-                            .flatten())
-    return Band_power
-    
-def getFiveBands_Power(freqs,power):
-    theta_power = getBand_Power(freqs,power,3,7)
-    slow_alpha_power = getBand_Power(freqs,power,8,10)
-    alpha_power = getBand_Power(freqs,power,8,13)
-    beta_power = getBand_Power(freqs,power,14,29)
-    gamma_power = getBand_Power(freqs,power,30,47)
-
-    return theta_power, slow_alpha_power, alpha_power, beta_power, gamma_power 
-
-    
 def eeg_preprocessing(signals):
     ''' Preprocessing for EEG signals '''
     trans_signals = np.transpose(signals)
@@ -97,7 +45,8 @@ def eeg_preprocessing(signals):
     alpha_spec_power = []
     beta_spec_power = []
     gamma_spec_power = []
-    spec_power_list = [theta_spec_power, slow_alpha_spec_power, alpha_spec_power, beta_spec_power, gamma_spec_power]
+    spec_power_list = [theta_spec_power, slow_alpha_spec_power,
+                       alpha_spec_power, beta_spec_power, gamma_spec_power]
 
     theta_spa = []
     slow_alpha_spa = []
@@ -105,15 +54,15 @@ def eeg_preprocessing(signals):
     beta_spa = []
     gamma_spa = []
 
-    for channel_signals in trans_signals:        
+    for channel_signals in trans_signals:
         freqs, power = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='density')
-        psd = getFiveBands_Power(freqs,power)
-        for band,band_list in zip(psd,psd_list):
+        psd = getFiveBands_Power(freqs, power)
+        for band, band_list in zip(psd, psd_list):
             band_list.append(log(band))
 
         freqs_, power_ = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='spectrum')
-        spec_power = getFiveBands_Power(freqs_,power_)
-        for band,band_list in zip(spec_power,spec_power_list):
+        spec_power = getFiveBands_Power(freqs_, power_)
+        for band, band_list in zip(spec_power, spec_power_list):
             band_list.append(band)
 
     for i in range(7):
@@ -127,13 +76,6 @@ def eeg_preprocessing(signals):
                         (beta_spec_power[i] + beta_spec_power[13 - i]))
         gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
                          (gamma_spec_power[i] + gamma_spec_power[13 - i]))
-
-    # features = np.concatenate((theta_power, slow_alpha_power,
-    #                            alpha_power, beta_power,
-    #                            gamma_power, theta_spa, slow_alpha_spa,
-    #                            alpha_spa, beta_spa, gamma_spa))
-
-    # print("There are {} EEG features".format(features.size))
 
     features = {
         'theta_power': theta_power,
@@ -154,13 +96,13 @@ def eeg_preprocessing(signals):
 def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
     ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
-    rpeaks = ecg_all['rpeaks'] # R-peak location indices.
-    
+    rpeaks = ecg_all['rpeaks']  # R-peak location indices.
+
     # ECG
-    freqs, power = getfreqs_power(signals,fs=256.,nperseg=signals.size,scaling='spectrum')
+    freqs, power = getfreqs_power(signals, fs=256., nperseg=signals.size, scaling='spectrum')
     power_0_6 = []
     for i in range(60):
-        power_0_6.append(getBand_Power(freqs,power,lower=0+(i * 0.1),upper=0.1+(i * 0.1)))
+        power_0_6.append(getBand_Power(freqs, power, lower=0 + (i * 0.1), upper=0.1 + (i * 0.1)))
 
     IBI = np.array([])
     for i in range(len(rpeaks) - 1):
@@ -176,33 +118,23 @@ def ecg_preprocessing(signals):
     std_IBI = np.std(IBI)
     skew_IBI = skew(IBI)
     kurt_IBI = kurtosis(IBI)
-    per_above_IBI = float(IBI[IBI > mean_IBI + std_IBI].size)/float(IBI.size)
-    per_below_IBI = float(IBI[IBI < mean_IBI - std_IBI].size)/float(IBI.size)
-    
-    # IBI    
-    freqs_, power_ = getfreqs_power(IBI,fs=1.0/mean_IBI,nperseg=IBI.size,scaling='spectrum')
-    power_001_008=getBand_Power(freqs_,power_,lower=0.01,upper=0.08)
-    power_008_015=getBand_Power(freqs_,power_,lower=0.08,upper=0.15)
-    power_015_050=getBand_Power(freqs_,power_,lower=0.15,upper=0.50)
+    per_above_IBI = float(IBI[IBI > mean_IBI + std_IBI].size) / float(IBI.size)
+    per_below_IBI = float(IBI[IBI < mean_IBI - std_IBI].size) / float(IBI.size)
+
+    # IBI
+    freqs_, power_ = getfreqs_power(IBI, fs=1.0 / mean_IBI, nperseg=IBI.size, scaling='spectrum')
+    power_001_008 = getBand_Power(freqs_, power_, lower=0.01, upper=0.08)
+    power_008_015 = getBand_Power(freqs_, power_, lower=0.08, upper=0.15)
+    power_015_050 = getBand_Power(freqs_, power_, lower=0.15, upper=0.50)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
     skew_heart_rate = skew(heart_rate)
     kurt_heart_rate = kurtosis(heart_rate)
     per_above_heart_rate = float(heart_rate[heart_rate >
-                                      mean_heart_rate + std_heart_rate].size) / float(heart_rate.size)
+                                            mean_heart_rate + std_heart_rate].size) / float(heart_rate.size)
     per_below_heart_rate = float(heart_rate[heart_rate <
-                                      mean_heart_rate - std_heart_rate].size) / float(heart_rate.size)
-
-    # features = np.concatenate(([rms_IBI, mean_IBI], power_0_6,
-    #                            [power_001_008, power_008_015,
-    #                             power_015_050, mean_heart_rate,
-    #                             std_heart_rate, skew_heart_rate,
-    #                             kurt_heart_rate, per_above_heart_rate,
-    #                             per_below_heart_rate, std_IBI, skew_IBI,
-    #                             kurt_IBI, per_above_IBI, per_below_IBI]))
-
-    # print("There are {} ECG features".format(features.size))
+                                            mean_heart_rate - std_heart_rate].size) / float(heart_rate.size)
 
     features = {
         'rms_IBI': rms_IBI,
@@ -245,23 +177,29 @@ def gsr_preprocessing(signals):
         if signals[i - 1] > signals[i] and signals[i] < signals[i + 1]:
             local_min += 1
 
+    nor_signals = (signals - np.mean(signals)) / np.std(signals)
+    det_nor_signals, trend = detrend(nor_signals)
+    lp_det_nor_signals = butter_lowpass_filter(det_nor_signals, 0.5, 128)
+    der_lp_det_nor_signals = np.gradient(lp_det_nor_signals)
+
     rising_time = 0
     rising_cnt = 0
-    for i in range(der_signals.size - 1):
-        if der_signals[i] > 0 and der_signals[i + 1] < 0:
+    for i in range(der_lp_det_nor_signals.size - 1):
+        if der_lp_det_nor_signals[i] > 0 and der_lp_det_nor_signals[i + 1] < 0:
             rising_cnt += 1
         else:
             rising_time += 1
 
     avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
-    
-    freqs, power = getfreqs_power(signals,fs=128.,nperseg=signals.size,scaling='spectrum')
+
+    freqs, power = getfreqs_power(signals, fs=128., nperseg=signals.size, scaling='spectrum')
     power_0_24 = []
     for i in range(21):
-        power_0_24.append(getBand_Power(freqs,power,lower=0+(i*0.8/7),upper=0.1+(i*0.8/7)))
-        
-    SCSR = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
-    SCVSR = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
+        power_0_24.append(getBand_Power(freqs, power, lower=0 +
+                                        (i * 0.8 / 7), upper=0.1 + (i * 0.8 / 7)))
+
+    SCSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
+    SCVSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
 
     zero_cross_SCSR = 0
     zero_cross_SCVSR = 0
@@ -292,12 +230,6 @@ def gsr_preprocessing(signals):
 
     mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
     mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
-
-    # features = np.concatenate(([mean, der_mean, neg_der_mean, neg_der_pro,
-    #                             local_min, avg_rising_time], power_0_24,
-    #                            [zcr_SCSR, zcr_SCVSR, mean_peak_SCSR, mean_peak_SCVSR]))
-
-    # print("There are {} GSR features".format(features.size))
 
     features = {
         'mean_sr': mean,
@@ -330,7 +262,7 @@ def read_dataset(path):
                                     delimiter=',')
             eeg_signals = signals[:, :14]
             ecg_signals = signals[:, 14]  # Column 14 or 15
-            gsr_signals = signals[20:, -1] # ignore the first 20 data, since there is noise in it 
+            gsr_signals = signals[20:, -1]  # ignore the first 20 data, since there is noise in it
 
             eeg_features = eeg_preprocessing(eeg_signals)
             ecg_features = ecg_preprocessing(ecg_signals)
@@ -348,8 +280,7 @@ def read_dataset(path):
 
 def main():
     ''' Main function '''
-    #amigos_data = read_dataset('data')
-    amigos_data = read_dataset('../AMIGOS_data')
+    amigos_data = read_dataset('data')
     with open(os.path.join('data', 'features.p'), 'wb') as pickle_file:
         pickle.dump(amigos_data, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -357,4 +288,3 @@ def main():
 if __name__ == '__main__':
 
     main()
-    
