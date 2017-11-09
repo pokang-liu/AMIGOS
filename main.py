@@ -14,6 +14,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, f1_score
 
 from ALL_preprocess import MISSING_DATA, SUBJECT_NUM, VIDEO_NUM
+from fisher import fisher, feature_selection
 
 MISSING_DATA_IDX = []
 for tup in MISSING_DATA:
@@ -121,26 +122,34 @@ def main():
             val_a_labels[idx] = 1 if label > val_a_labels_median else 0
             val_v_labels[idx] = 1 if label > val_v_labels_median else 0
 
+        sorted_v_feature_idx = fisher(train_data, train_a_labels)
+        train_v_data = feature_selection(50, train_data, sorted_v_feature_idx)
+        val_v_data = feature_selection(50, val_data, sorted_v_feature_idx)
+
+        sorted_a_feature_idx = fisher(train_data,train_a_labels)
+        train_a_data = feature_selection(50, train_data, sorted_a_feature_idx)
+        val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
+
         print('Training Arousal Model')
-        a_clf.fit(train_data, train_a_labels)
+        a_clf.fit(train_a_data, train_a_labels)
         print('Training Valence Model')
-        v_clf.fit(train_data, train_v_labels)
+        v_clf.fit(train_v_data, train_v_labels)
 
-        train_a_predict_labels = a_clf.predict(train_data)
-        train_v_predict_labels = v_clf.predict(train_data)
+        train_a_predict_labels = a_clf.predict(train_a_data)
+        train_v_predict_labels = v_clf.predict(train_v_data)
 
-        val_a_predict_labels = a_clf.predict(val_data)
-        val_v_predict_labels = v_clf.predict(val_data)
+        val_a_predict_labels = a_clf.predict(val_a_data)
+        val_v_predict_labels = v_clf.predict(val_v_data)
 
         train_a_accuracy = accuracy_score(train_a_labels, train_a_predict_labels)
         train_v_accuracy = accuracy_score(train_v_labels, train_v_predict_labels)
-        train_a_f1score = f1_score(train_a_labels, train_a_predict_labels)
-        train_v_f1score = f1_score(train_v_labels, train_v_predict_labels)
+        train_a_f1score = f1_score(train_a_labels, train_a_predict_labels, average='weighted')
+        train_v_f1score = f1_score(train_v_labels, train_v_predict_labels, average='weighted')
 
         val_a_accuracy = accuracy_score(val_a_labels, val_a_predict_labels)
         val_v_accuracy = accuracy_score(val_v_labels, val_v_predict_labels)
-        val_a_f1score = f1_score(val_a_labels, val_a_predict_labels)
-        val_v_f1score = f1_score(val_v_labels, val_v_predict_labels)
+        val_a_f1score = f1_score(val_a_labels, val_a_predict_labels, average='weighted')
+        val_v_f1score = f1_score(val_v_labels, val_v_predict_labels, average='weighted')
 
         print('Training Result')
         print("Arousal: Accuracy: {}, F1score: {}".format(train_a_accuracy, train_a_f1score))
