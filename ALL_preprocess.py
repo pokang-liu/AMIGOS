@@ -95,6 +95,9 @@ def eeg_preprocessing(signals):
 
 def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
+    # some data have high peak value due to noise
+    # signals , _ = detrend(signals)
+    signals= butter_highpass_filter(signals, 1.0, 256.0)
     ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
     rpeaks = ecg_all['rpeaks']  # R-peak location indices.
 
@@ -123,9 +126,13 @@ def ecg_preprocessing(signals):
 
     # IBI
     freqs_, power_ = getfreqs_power(IBI, fs=1.0 / mean_IBI, nperseg=IBI.size, scaling='spectrum')
-    power_001_008 = getBand_Power(freqs_, power_, lower=0.01, upper=0.08)
-    power_008_015 = getBand_Power(freqs_, power_, lower=0.08, upper=0.15)
-    power_015_050 = getBand_Power(freqs_, power_, lower=0.15, upper=0.50)
+    power_000_004 = getBand_Power(freqs_, power_, lower=0., upper=0.04) #VLF
+    power_004_015 = getBand_Power(freqs_, power_, lower=0.04, upper=0.15) #LF
+    power_015_040 = getBand_Power(freqs_, power_, lower=0.15, upper=0.40) #HF
+    power_000_040 = getBand_Power(freqs_, power_, lower=0., upper=0.40) #TF
+    LF_HF = power_004_015/power_015_040
+    LF_TF = power_004_015/power_000_040
+    HF_TF = power_015_040/power_000_040    
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
@@ -140,9 +147,12 @@ def ecg_preprocessing(signals):
         'rms_IBI': rms_IBI,
         'mean_IBI': mean_IBI,
         'power_0_6': power_0_6,
-        'power_001_008': power_001_008,
-        'power_008_015': power_008_015,
-        'power_015_050': power_015_050,
+        'power_000_004': power_000_004,
+        'power_004_015': power_004_015,
+        'power_015_040': power_015_040,
+        'LF_HF': LF_HF,
+        'LF_TF': LF_TF,
+        'HF_TF': HF_TF,
         'mean_heart_rate': mean_heart_rate,
         'std_heart_rate': std_heart_rate,
         'skew_heart_rate': skew_heart_rate,
@@ -177,20 +187,20 @@ def gsr_preprocessing(signals):
         if signals[i - 1] > signals[i] and signals[i] < signals[i + 1]:
             local_min += 1
 
-    nor_signals = (signals - np.mean(signals)) / np.std(signals)
-    det_nor_signals, trend = detrend(nor_signals)
+    # Using SC calculates rising time
+    det_nor_signals, trend = detrend(nor_con_signals)
     lp_det_nor_signals = butter_lowpass_filter(det_nor_signals, 0.5, 128)
     der_lp_det_nor_signals = np.gradient(lp_det_nor_signals)
 
     rising_time = 0
     rising_cnt = 0
     for i in range(der_lp_det_nor_signals.size - 1):
-        if der_lp_det_nor_signals[i] > 0 and der_lp_det_nor_signals[i + 1] < 0:
-            rising_cnt += 1
-        else:
+        if der_lp_det_nor_signals[i] > 0:
             rising_time += 1
+            if der_lp_det_nor_signals[i + 1] < 0:
+                rising_cnt += 1
 
-    avg_rising_time = rising_time / (rising_cnt * SAMPLE_RATE)
+    avg_rising_time = rising_time*(1./128.) / rising_cnt
 
     freqs, power = getfreqs_power(signals, fs=128., nperseg=signals.size, scaling='spectrum')
     power_0_24 = []
@@ -280,7 +290,7 @@ def read_dataset(path):
 
 def main():
     ''' Main function '''
-    amigos_data = read_dataset('data')
+    amigos_data = read_dataset('../AMIGOS_data')
     with open(os.path.join('data', 'features.p'), 'wb') as pickle_file:
         pickle.dump(amigos_data, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
