@@ -53,14 +53,21 @@ def eeg_preprocessing(signals):
     alpha_spa = []
     beta_spa = []
     gamma_spa = []
+    
+    theta_relative_power = []
+    slow_alpha_relative_power = []
+    alpha_relative_power = []
+    beta_relative_power = []
+    gamma_relative_power = []
+    
 
     for channel_signals in trans_signals:
-        freqs, power = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='density')
+        freqs, power = getfreqs_power(channel_signals, fs=128., nperseg=channel_signals.size, scaling='density')
         psd = getFiveBands_Power(freqs, power)
         for band, band_list in zip(psd, psd_list):
-            band_list.append(log(band))
+            band_list.append(band)
 
-        freqs_, power_ = getfreqs_power(channel_signals, fs=128., nperseg=128, scaling='spectrum')
+        freqs_, power_ = getfreqs_power(channel_signals, fs=128., nperseg=channel_signals.size, scaling='spectrum')
         spec_power = getFiveBands_Power(freqs_, power_)
         for band, band_list in zip(spec_power, spec_power_list):
             band_list.append(band)
@@ -76,7 +83,16 @@ def eeg_preprocessing(signals):
                         (beta_spec_power[i] + beta_spec_power[13 - i]))
         gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
                          (gamma_spec_power[i] + gamma_spec_power[13 - i]))
-
+    
+    total_power = np.array(theta_power) + np.array(alpha_power) + np.array(beta_power) + np.array(gamma_power)
+    
+    for i in range(trans_signals.shape[0]):
+        theta_relative_power.append(theta_power[i]/total_power[i])
+        slow_alpha_relative_power.append(slow_alpha_power[i]/total_power[i])
+        alpha_relative_power.append(alpha_power[i]/total_power[i])
+        beta_relative_power.append(beta_power[i]/total_power[i])
+        gamma_relative_power.append(gamma_power[i]/total_power[i])  
+    
     features = {
         'theta_power': theta_power,
         'slow_alpha_power': slow_alpha_power,
@@ -87,7 +103,12 @@ def eeg_preprocessing(signals):
         'slow_alpha_spa': slow_alpha_spa,
         'alpha_spa': alpha_spa,
         'beta_spa': beta_spa,
-        'gamma_spa': gamma_spa
+        'gamma_spa': gamma_spa,
+        'theta_relative_power': theta_relative_power,
+        'slow_alpha_relative_power': slow_alpha_relative_power,
+        'alpha_relative_power': alpha_relative_power,
+        'beta_relative_power': beta_relative_power,
+        'gamma_relative_power': gamma_relative_power
     }
 
     return features
@@ -130,9 +151,12 @@ def ecg_preprocessing(signals):
     power_004_015 = getBand_Power(freqs_, power_, lower=0.04, upper=0.15) #LF
     power_015_040 = getBand_Power(freqs_, power_, lower=0.15, upper=0.40) #HF
     power_000_040 = getBand_Power(freqs_, power_, lower=0., upper=0.40) #TF
+    # maybe these five features indicate same meaning
     LF_HF = power_004_015/power_015_040
     LF_TF = power_004_015/power_000_040
-    HF_TF = power_015_040/power_000_040    
+    HF_TF = power_015_040/power_000_040
+    nLF = power_004_015/(power_000_040-power_000_004)
+    nHF = power_015_040/(power_000_040-power_000_004)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
@@ -153,6 +177,8 @@ def ecg_preprocessing(signals):
         'LF_HF': LF_HF,
         'LF_TF': LF_TF,
         'HF_TF': HF_TF,
+        'nLF': nLF,
+        'nHF': nHF,
         'mean_heart_rate': mean_heart_rate,
         'std_heart_rate': std_heart_rate,
         'skew_heart_rate': skew_heart_rate,
@@ -189,7 +215,7 @@ def gsr_preprocessing(signals):
 
     # Using SC calculates rising time
     det_nor_signals, trend = detrend(nor_con_signals)
-    lp_det_nor_signals = butter_lowpass_filter(det_nor_signals, 0.5, 128)
+    lp_det_nor_signals = butter_lowpass_filter(det_nor_signals, 0.5, 128.)
     der_lp_det_nor_signals = np.gradient(lp_det_nor_signals)
 
     rising_time = 0
@@ -208,8 +234,8 @@ def gsr_preprocessing(signals):
         power_0_24.append(getBand_Power(freqs, power, lower=0 +
                                         (i * 0.8 / 7), upper=0.1 + (i * 0.8 / 7)))
 
-    SCSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128))
-    SCVSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128))
+    SCSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.2, 128.))
+    SCVSR, _ = detrend(butter_lowpass_filter(nor_con_signals, 0.08, 128.))
 
     zero_cross_SCSR = 0
     zero_cross_SCVSR = 0
