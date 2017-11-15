@@ -49,10 +49,10 @@ def getfreqs_power(signals, fs, nperseg, scaling):
 
 
 def getBand_Power(freqs, power, lower, upper):
-    Band_power = float(np.array
-                       ((tools.band_power(freqs=freqs, power=power,
-                                          frequency=[lower, upper], decibel=False)))
-                       .flatten())
+    low_idx = np.array(np.where(freqs<=lower)).flatten()
+    up_idx = np.array(np.where(freqs>upper)).flatten()
+    Band_power = np.sum(power[low_idx[-1]:up_idx[0]])
+    
     return Band_power
 
 
