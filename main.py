@@ -12,6 +12,7 @@ import numpy as np
 # from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, f1_score
+import xgboost as xgb
 
 from ALL_preprocess import MISSING_DATA, SUBJECT_NUM, VIDEO_NUM
 from fisher import fisher, feature_selection
@@ -39,8 +40,48 @@ def main():
     # a_clf = SVC(C=0.25, kernel='linear')
     # v_clf = SVC(C=0.25, kernel='linear')
 
-    a_clf = GaussianNB()
-    v_clf = GaussianNB()
+    # a_clf = GaussianNB()
+    # v_clf = GaussianNB()
+
+    a_clf = xgb.XGBClassifier(
+        max_depth=5,
+        learning_rate=0.1,
+        n_estimators=1000,
+        silent=True,
+        objective="binary:logistic",
+        nthread=-1,
+        gamma=0,
+        min_child_weight=1,
+        max_delta_step=0,
+        subsample=1,
+        colsample_bytree=0.5,
+        colsample_bylevel=0.5,
+        reg_alpha=0,
+        reg_lambda=1,
+        scale_pos_weight=1,
+        base_score=0.5,
+        seed=0
+    )
+
+    v_clf = xgb.XGBClassifier(
+        max_depth=5,
+        learning_rate=0.1,
+        n_estimators=1000,
+        silent=True,
+        objective="binary:logistic",
+        nthread=-1,
+        gamma=0,
+        min_child_weight=1,
+        max_delta_step=0,
+        subsample=1,
+        colsample_bytree=0.5,
+        colsample_bylevel=0.5,
+        reg_alpha=0,
+        reg_lambda=1,
+        scale_pos_weight=1,
+        base_score=0.5,
+        seed=0
+    )
 
     train_a_accuracy_history = []
     train_v_accuracy_history = []
@@ -50,6 +91,16 @@ def main():
     val_v_accuracy_history = []
     val_a_f1score_history = []
     val_v_f1score_history = []
+
+    # split labels to 0 and 1 according to their ''individual'' mean
+    labels = np.genfromtxt('./data/label.csv', delimiter=',')
+    labels = labels[:,:2]
+    for i in range(SUBJECT_NUM):
+        a_labels_mean = np.mean(labels[i*16:i*16+16,0])
+        v_labels_mean = np.mean(labels[i*16:i*16+16,1])
+        for idx, label in enumerate(labels[i*16:i*16+16,:]):
+            labels[idx+i*16][0] = 1 if label[0] > a_labels_mean else 0
+            labels[idx+i*16][1] = 1 if label[1] > v_labels_mean else 0
 
     for i in range(SUBJECT_NUM):
         print("Leaving {} Subject Out".format(i + 1))
@@ -81,14 +132,14 @@ def main():
                                            ) if train_data.size else tmp_array
 
         # map features to [-1, 1]
-        train_data_max = np.max(train_data, axis=0)
-        train_data_min = np.min(train_data, axis=0)
-        train_data = (train_data - train_data_min) / (train_data_max - train_data_min)
-        train_data = train_data * 2 - 1
-        val_data_max = np.max(val_data, axis=0)
-        val_data_min = np.min(val_data, axis=0)
-        val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
-        val_data = val_data * 2 - 1
+        # train_data_max = np.max(train_data, axis=0)
+        # train_data_min = np.min(train_data, axis=0)
+        # train_data = (train_data - train_data_min) / (train_data_max - train_data_min)
+        # train_data = train_data * 2 - 1
+        # val_data_max = np.max(val_data, axis=0)
+        # val_data_min = np.min(val_data, axis=0)
+        # val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
+        # val_data = val_data * 2 - 1
 
         # get labels for cross validation
         train_a_labels = []
@@ -97,49 +148,36 @@ def main():
         val_v_labels = []
         val_idx = np.arange(16) + i * 16
 
-        with open(os.path.join('data', 'label.csv'), 'r') as label_file:
-            for idx, line in enumerate(label_file.readlines()):
-                if idx in MISSING_DATA_IDX:
-                    continue
-                if idx in val_idx:
-                    val_a_labels.append(float(line.split(',')[0]))
-                    val_v_labels.append(float(line.split(',')[1]))
-                else:
-                    train_a_labels.append(float(line.split(',')[0]))
-                    train_v_labels.append(float(line.split(',')[1]))
-                if idx == SUBJECT_NUM * VIDEO_NUM - 1:
-                    break
+        for idx, line in enumerate(labels):
+            if idx in MISSING_DATA_IDX:
+                continue
+            if idx in val_idx:
+                val_a_labels.append(line[0])
+                val_v_labels.append(line[1])
+            else:
+                train_a_labels.append(line[0])
+                train_v_labels.append(line[1])
+            if idx == SUBJECT_NUM * VIDEO_NUM - 1:
+                break
 
-        # split labels to 0 and 1 according to their median
-        train_a_labels_median = np.median(train_a_labels)
-        train_v_labels_median = np.median(train_v_labels)
-        val_a_labels_median = np.median(val_a_labels)
-        val_v_labels_median = np.median(val_v_labels)
-        for idx, label in enumerate(train_a_labels):
-            train_a_labels[idx] = 1 if label > train_a_labels_median else 0
-            train_v_labels[idx] = 1 if label > train_v_labels_median else 0
-        for idx, label in enumerate(val_a_labels):
-            val_a_labels[idx] = 1 if label > val_a_labels_median else 0
-            val_v_labels[idx] = 1 if label > val_v_labels_median else 0
+        # sorted_v_feature_idx = fisher(train_data, train_a_labels)
+        # train_v_data = feature_selection(50, train_data, sorted_v_feature_idx)
+        # val_v_data = feature_selection(50, val_data, sorted_v_feature_idx)
 
-        sorted_v_feature_idx = fisher(train_data, train_a_labels)
-        train_v_data = feature_selection(50, train_data, sorted_v_feature_idx)
-        val_v_data = feature_selection(50, val_data, sorted_v_feature_idx)
-
-        sorted_a_feature_idx = fisher(train_data,train_a_labels)
-        train_a_data = feature_selection(50, train_data, sorted_a_feature_idx)
-        val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
+        # sorted_a_feature_idx = fisher(train_data,train_a_labels)
+        # train_a_data = feature_selection(50, train_data, sorted_a_feature_idx)
+        # val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
 
         print('Training Arousal Model')
-        a_clf.fit(train_a_data, train_a_labels)
+        a_clf.fit(train_data, train_a_labels)
         print('Training Valence Model')
-        v_clf.fit(train_v_data, train_v_labels)
+        v_clf.fit(train_data, train_v_labels)
 
-        train_a_predict_labels = a_clf.predict(train_a_data)
-        train_v_predict_labels = v_clf.predict(train_v_data)
+        train_a_predict_labels = a_clf.predict(train_data)
+        train_v_predict_labels = v_clf.predict(train_data)
 
-        val_a_predict_labels = a_clf.predict(val_a_data)
-        val_v_predict_labels = v_clf.predict(val_v_data)
+        val_a_predict_labels = a_clf.predict(val_data)
+        val_v_predict_labels = v_clf.predict(val_data)
 
         train_a_accuracy = accuracy_score(train_a_labels, train_a_predict_labels)
         train_v_accuracy = accuracy_score(train_v_labels, train_v_predict_labels)
