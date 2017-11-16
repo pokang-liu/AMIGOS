@@ -116,9 +116,9 @@ def main():
                 break
             
         ###############################################
-        a_clf  = SFS(a_clf, k_features=20, forward=False, floating=False,\
+        a_clf  = SFS(SVC(), k_features=20, forward=False, floating=False,\
         verbose=2,scoring='accuracy',cv=39)
-        v_clf  = SFS(v_clf, k_features=20, forward=False, floating=False,\
+        v_clf  = SFS(SVC(), k_features=20, forward=False, floating=False,\
         verbose=2,scoring='accuracy',cv=39)
         #################################################
         print('Training Arousal Model')
