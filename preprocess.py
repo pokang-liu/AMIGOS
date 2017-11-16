@@ -5,28 +5,19 @@
 Functions for Preprocessing
 '''
 
-from math import log
+from argparse import ArgumentParser
 import os
-import pickle
 import warnings
 import numpy as np
-import matplotlib.pyplot as plt
 from biosppy.signals import ecg
 from scipy.stats import skew, kurtosis
 
-from utils import butter_highpass_filter, butter_lowpass_filter, getfreqs_power, getBand_Power, getFiveBands_Power, detrend
+from utils import butter_highpass_filter, butter_lowpass_filter
+from utils import getfreqs_power, getBand_Power, getFiveBands_Power
+from utils import detrend
+from config import SUBJECT_NUM, VIDEO_NUM, SAMPLE_RATE, MISSING_DATA_SUBJECT
 
 warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
-
-SUBJECT_NUM = 40
-VIDEO_NUM = 16
-SAMPLE_RATE = 128.
-MISSING_DATA = [(9, 1), (9, 2), (9, 3), (9, 6), (9, 7), (9, 9), (9, 11),
-                (9, 12), (9, 13), (9, 15), (9, 16), (12, 5), (21, 2), (21, 11),
-                (22, 16), (23, 1), (23, 5), (23, 7), (23, 9), (23, 12), (24, 1),
-                (24, 8), (24, 12), (24, 13), (24, 14), (24, 15), (24, 16), (33, 1),
-                (33, 2), (33, 3), (33, 7), (33, 8), (33, 9), (33, 10), (33, 11),
-                (33, 13), (33, 16)]
 
 
 def eeg_preprocessing(signals):
@@ -53,21 +44,22 @@ def eeg_preprocessing(signals):
     alpha_spa = []
     beta_spa = []
     gamma_spa = []
-    
+
     theta_relative_power = []
     slow_alpha_relative_power = []
     alpha_relative_power = []
     beta_relative_power = []
     gamma_relative_power = []
-    
 
     for channel_signals in trans_signals:
-        freqs, power = getfreqs_power(channel_signals, fs=128., nperseg=channel_signals.size, scaling='density')
+        freqs, power = getfreqs_power(channel_signals, fs=128.,
+                                      nperseg=channel_signals.size, scaling='density')
         psd = getFiveBands_Power(freqs, power)
         for band, band_list in zip(psd, psd_list):
             band_list.append(band)
 
-        freqs_, power_ = getfreqs_power(channel_signals, fs=128., nperseg=channel_signals.size, scaling='spectrum')
+        freqs_, power_ = getfreqs_power(channel_signals, fs=128.,
+                                        nperseg=channel_signals.size, scaling='spectrum')
         spec_power = getFiveBands_Power(freqs_, power_)
         for band, band_list in zip(spec_power, spec_power_list):
             band_list.append(band)
@@ -83,33 +75,20 @@ def eeg_preprocessing(signals):
                         (beta_spec_power[i] + beta_spec_power[13 - i]))
         gamma_spa.append((gamma_spec_power[i] - gamma_spec_power[13 - i]) /
                          (gamma_spec_power[i] + gamma_spec_power[13 - i]))
-    
-    total_power = np.array(theta_power) + np.array(alpha_power) + np.array(beta_power) + np.array(gamma_power)
-    
+
+    total_power = np.array(theta_power) + np.array(alpha_power) + \
+        np.array(beta_power) + np.array(gamma_power)
+
     for i in range(trans_signals.shape[0]):
-        theta_relative_power.append(theta_power[i]/total_power[i])
-        slow_alpha_relative_power.append(slow_alpha_power[i]/total_power[i])
-        alpha_relative_power.append(alpha_power[i]/total_power[i])
-        beta_relative_power.append(beta_power[i]/total_power[i])
-        gamma_relative_power.append(gamma_power[i]/total_power[i])  
-    
-    features = {
-        'theta_power': theta_power,
-        'slow_alpha_power': slow_alpha_power,
-        'alpha_power': alpha_power,
-        'beta_power': beta_power,
-        'gamma_power': gamma_power,
-        'theta_spa': theta_spa,
-        'slow_alpha_spa': slow_alpha_spa,
-        'alpha_spa': alpha_spa,
-        'beta_spa': beta_spa,
-        'gamma_spa': gamma_spa,
-        'theta_relative_power': theta_relative_power,
-        'slow_alpha_relative_power': slow_alpha_relative_power,
-        'alpha_relative_power': alpha_relative_power,
-        'beta_relative_power': beta_relative_power,
-        'gamma_relative_power': gamma_relative_power
-    }
+        theta_relative_power.append(theta_power[i] / total_power[i])
+        slow_alpha_relative_power.append(slow_alpha_power[i] / total_power[i])
+        alpha_relative_power.append(alpha_power[i] / total_power[i])
+        beta_relative_power.append(beta_power[i] / total_power[i])
+        gamma_relative_power.append(gamma_power[i] / total_power[i])
+
+    features = theta_power + slow_alpha_power + alpha_power + beta_power + gamma_power + theta_spa + slow_alpha_spa + alpha_spa + beta_spa + \
+        gamma_spa + theta_relative_power + slow_alpha_relative_power + \
+        alpha_relative_power + beta_relative_power + gamma_relative_power
 
     return features
 
@@ -118,7 +97,7 @@ def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
     # some data have high peak value due to noise
     # signals , _ = detrend(signals)
-    signals= butter_highpass_filter(signals, 1.0, 256.0)
+    signals = butter_highpass_filter(signals, 1.0, 256.0)
     ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
     rpeaks = ecg_all['rpeaks']  # R-peak location indices.
 
@@ -147,16 +126,16 @@ def ecg_preprocessing(signals):
 
     # IBI
     freqs_, power_ = getfreqs_power(IBI, fs=1.0 / mean_IBI, nperseg=IBI.size, scaling='spectrum')
-    power_000_004 = getBand_Power(freqs_, power_, lower=0., upper=0.04) #VLF
-    power_004_015 = getBand_Power(freqs_, power_, lower=0.04, upper=0.15) #LF
-    power_015_040 = getBand_Power(freqs_, power_, lower=0.15, upper=0.40) #HF
-    power_000_040 = getBand_Power(freqs_, power_, lower=0., upper=0.40) #TF
+    power_000_004 = getBand_Power(freqs_, power_, lower=0., upper=0.04)  # VLF
+    power_004_015 = getBand_Power(freqs_, power_, lower=0.04, upper=0.15)  # LF
+    power_015_040 = getBand_Power(freqs_, power_, lower=0.15, upper=0.40)  # HF
+    power_000_040 = getBand_Power(freqs_, power_, lower=0., upper=0.40)  # TF
     # maybe these five features indicate same meaning
-    LF_HF = power_004_015/power_015_040
-    LF_TF = power_004_015/power_000_040
-    HF_TF = power_015_040/power_000_040
-    nLF = power_004_015/(power_000_040-power_000_004)
-    nHF = power_015_040/(power_000_040-power_000_004)
+    LF_HF = power_004_015 / power_015_040
+    LF_TF = power_004_015 / power_000_040
+    HF_TF = power_015_040 / power_000_040
+    nLF = power_004_015 / (power_000_040 - power_000_004)
+    nHF = power_015_040 / (power_000_040 - power_000_004)
 
     mean_heart_rate = np.mean(heart_rate)
     std_heart_rate = np.std(heart_rate)
@@ -167,30 +146,8 @@ def ecg_preprocessing(signals):
     per_below_heart_rate = float(heart_rate[heart_rate <
                                             mean_heart_rate - std_heart_rate].size) / float(heart_rate.size)
 
-    features = {
-        'rms_IBI': rms_IBI,
-        'mean_IBI': mean_IBI,
-        'power_0_6': power_0_6,
-        'power_000_004': power_000_004,
-        'power_004_015': power_004_015,
-        'power_015_040': power_015_040,
-        'LF_HF': LF_HF,
-        'LF_TF': LF_TF,
-        'HF_TF': HF_TF,
-        'nLF': nLF,
-        'nHF': nHF,
-        'mean_heart_rate': mean_heart_rate,
-        'std_heart_rate': std_heart_rate,
-        'skew_heart_rate': skew_heart_rate,
-        'kurt_heart_rate': kurt_heart_rate,
-        'per_above_heart_rate': per_above_heart_rate,
-        'per_below_heart_rate': per_below_heart_rate,
-        'std_IBI': std_IBI,
-        'skew_IBI': skew_IBI,
-        'kurt_IBI': kurt_IBI,
-        'per_above_IBI': per_above_IBI,
-        'per_below_IBI': per_below_IBI
-    }
+    features = [rms_IBI, mean_IBI] + power_0_6 + [power_000_004, power_004_015, power_015_040, mean_heart_rate, std_heart_rate, skew_heart_rate,
+                                                  kurt_heart_rate, per_above_heart_rate, per_below_heart_rate, std_IBI, skew_IBI, kurt_IBI, per_above_IBI, per_below_IBI, LF_HF, LF_TF, HF_TF, nLF, nHF]
 
     return features
 
@@ -226,7 +183,7 @@ def gsr_preprocessing(signals):
             if der_lp_det_nor_signals[i + 1] < 0:
                 rising_cnt += 1
 
-    avg_rising_time = rising_time*(1./128.) / rising_cnt
+    avg_rising_time = rising_time * (1. / 128.) / rising_cnt
 
     freqs, power = getfreqs_power(signals, fs=128., nperseg=signals.size, scaling='spectrum')
     power_0_24 = []
@@ -267,30 +224,19 @@ def gsr_preprocessing(signals):
     mean_peak_SCSR = peaks_value_SCSR / peaks_cnt_SCSR if peaks_cnt_SCSR != 0 else 0
     mean_peak_SCVSR = peaks_value_SCVSR / peaks_cnt_SCVSR if peaks_value_SCVSR != 0 else 0
 
-    features = {
-        'mean_sr': mean,
-        'mean_sr_der': der_mean,
-        'mean_sr_neg_der': neg_der_mean,
-        'pro_neg_der': neg_der_pro,
-        'local_min_gsr': local_min,
-        'avg_rising_time': avg_rising_time,
-        'power_0_24': power_0_24,
-        'zcr_SCSR': zcr_SCSR,
-        'zcr_SCVSR': zcr_SCVSR,
-        'mean_peak_SCSR': mean_peak_SCSR,
-        'mean_peak_SCVSR': mean_peak_SCVSR
-    }
+    features = [mean, der_mean, neg_der_mean, neg_der_pro, local_min, avg_rising_time] + \
+        power_0_24 + [zcr_SCSR, zcr_SCVSR, mean_peak_SCSR, mean_peak_SCVSR]
 
     return features
 
 
 def read_dataset(path):
     ''' Read AMIGOS dataset '''
-    amigos_data = dict()
+    amigos_data = np.array([])
 
     for sid in range(SUBJECT_NUM):
         for vid in range(VIDEO_NUM):
-            if (sid + 1, vid + 1) in MISSING_DATA:
+            if sid + 1 in MISSING_DATA_SUBJECT:
                 print("Skipping {}_{}.csv".format(sid + 1, vid + 1))
                 continue
             print('Reading {}_{}.csv'.format(sid + 1, vid + 1))
@@ -304,21 +250,22 @@ def read_dataset(path):
             ecg_features = ecg_preprocessing(ecg_signals)
             gsr_features = gsr_preprocessing(gsr_signals)
 
-            features = {
-                'eeg': eeg_features,
-                'ecg': ecg_features,
-                'gsr': gsr_features
-            }
-            amigos_data["{}_{}".format(sid + 1, vid + 1)] = features
+            features = np.array(eeg_features + ecg_features + gsr_features)
+
+            amigos_data = np.vstack((amigos_data, features)) if amigos_data.size else features
 
     return amigos_data
 
 
 def main():
     ''' Main function '''
-    amigos_data = read_dataset('../AMIGOS_data')
-    with open(os.path.join('data', 'features.p'), 'wb') as pickle_file:
-        pickle.dump(amigos_data, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+    parser = ArgumentParser(
+        description='Affective Computing with AMIGOS Dataset -- Feature Extraction')
+    parser.add_argument('--data', type=str, default='./data')
+    args = parser.parse_args()
+
+    amigos_data = read_dataset(args.data)
+    np.savetxt(os.path.join(args.data, 'features.csv'), amigos_data, delimiter=',')
 
 
 if __name__ == '__main__':

@@ -3,4 +3,5 @@ __pycache__/
 data/*
 model/*
 
-!data/features.p
+!data/features.csv
+!data/label.csv
