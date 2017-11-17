@@ -4,11 +4,73 @@
 '''
 Utilities
 '''
-
+import os
 import numpy as np
 from PyEMD import EMD
 from scipy.signal import butter, lfilter, filtfilt, welch
 
+from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM
+from sklearn.feature_selection import f_regression
+
+def pvalue(path):
+    ''' Calculate P-value '''
+    # read extracted features
+    amigos_data = np.loadtxt(os.path.join(path, 'features.csv'), delimiter=',')
+
+    # read labels and split to 0 and 1 by
+    labels = np.loadtxt(os.path.join(path, 'label.csv'), delimiter=',')
+    labels = labels[:, :2]
+    a_labels, v_labels = [], []
+    for i in range(SUBJECT_NUM):
+        if i + 1 in MISSING_DATA_SUBJECT:
+            continue
+        a_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 0])
+        v_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 1])
+        for idx, label in enumerate(labels[i * 16:i * 16 + 16, :]):
+            a_tmp = 1 if label[0] > a_labels_mean else 0
+            v_tmp = 1 if label[1] > v_labels_mean else 0
+            a_labels.append(a_tmp)
+            v_labels.append(v_tmp)
+    a_labels, v_labels = np.array(a_labels), np.array(v_labels)
+    
+    _, a_pvalues = f_regression(amigos_data, a_labels)
+    _, v_pvalues = f_regression(amigos_data, v_labels)
+    
+    print('\nUse Arousal Labels')
+    print("Number of features (p < 0.05): {}".format(a_pvalues[a_pvalues < 0.05].size))
+    for i in range(a_pvalues[a_pvalues < 0.05].size):
+        print("Features: {}".format(FEATURE_NAMES[np.where(a_pvalues < 0.05)[0][i]]))
+        
+    print('\nUse Valence Labels')
+    print("Number of features (p < 0.05): {}".format(v_pvalues[v_pvalues < 0.05].size))
+    for i in range(a_pvalues[a_pvalues < 0.05].size):
+        print("Features: {}".format(FEATURE_NAMES[np.where(v_pvalues < 0.05)[0][i]]))
+        
+def fisher_selection(h, features, labels):
+    def fisher(features, labels):
+        labels = np.array(labels)
+        labels0 = np.where(labels < 1)
+        labels1 = np.where(labels > 0)
+        labels0 = np.array(labels0).flatten()
+        labels1 = np.array(labels1).flatten()    
+        features0 = np.delete(features, labels1, axis=0)
+        features1 = np.delete(features, labels0, axis=0)
+        mean_features0 = np.mean(features0, axis=0)
+        mean_features1 = np.mean(features1, axis=0)        
+        std_features0 = np.std(features0, axis=0)
+        std_features1 = np.std(features1, axis=0)
+        std_sum = std_features1**2 + std_features0**2
+        Fisher = (abs(mean_features0 - mean_features1)) / std_sum
+        Fisher = np.array(Fisher)    
+        Fisher_sorted = np.argsort(Fisher)# sort the fisher from small to large
+        sorted_feature_idx = Fisher_sorted[::-1]# arrange from large to small        
+        return sorted_feature_idx
+    sorted_feature_idx = fisher(features, labels)
+    h_features = np.zeros((features.shape[0], h))
+    for i in range(features.shape[0]):
+        for j in range(h):
+            h_features[i][j] = features[i][sorted_feature_idx[j]]
+    return h_features
 
 def butter_highpass_filter(data, cutoff, fs, order=5):
     ''' Highpass filter '''
