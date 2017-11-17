@@ -106,15 +106,15 @@ def main():
         )
         
         #################
-    if args.clf == 'rfe':
+    if args.select == 'rfe':
         a_clf = RFE(a_clf, 20)
         v_clf = RFE(v_clf, 20)
-    elif args.clf == 'sfs':
+    elif args.select == 'sfs':
         a_clf_select  = SFS(a_clf, k_features=20, forward=True, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
         v_clf_select  = SFS(v_clf, k_features=20, forward=True, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
-    elif args.clf == 'sbs':
+    elif args.select == 'sbs':
         a_clf_select  = SFS(a_clf, k_features=20, forward=False, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
         v_clf_select  = SFS(v_clf, k_features=20, forward=False, floating=False,\
@@ -180,19 +180,19 @@ def main():
         a_clf.fit(train_data, train_a_labels)
         v_clf.fit(train_data, train_v_labels)
 ###################################################
-        if args.clf == 'rfe':
+        if args.select == 'rfe':
             a_clf.fit(train_data, train_a_labels)
             v_clf.fit(train_data, train_v_labels)
-        elif args.clf == 'sfs':
+        elif args.select == 'sfs':
            a_clf_select.fit(train_data, train_a_labels)
            v_clf_select.fit(train_data, train_v_labels)
-        elif args.clf == 'sbs':
+        elif args.select == 'sbs':
            a_clf_select.fit(train_data, train_a_labels)
            v_clf_select.fit(train_data, train_v_labels)
 
 ####################################################
         #################sfs sbs refit##########
-        if args.clf == 'sfs'or args.clf == 'sbs':
+        if args.select == 'sfs'or args.select == 'sbs':
             train_a_data = a_clf_select.transform(train_data)
             val_a_data = a_clf_select.transform(val_data)
             train_v_data = v_clf_select.transform(train_data)
@@ -242,7 +242,7 @@ def main():
         
         
         #####################
-        if args.clf == 'sfs' or args.clf == 'sbs':
+        if args.select == 'sfs' or args.select == 'sfs':
             print('a_clf_select.k_feature_idx_')
             print(a_clf_select.k_feature_idx_)
             print('v_clf_select.k_feature_idx_')
@@ -252,7 +252,7 @@ def main():
             v_feature_history = np.vstack((v_feature_history, v_clf_sfs.k_feature_idx_))\
             if v_feature_history.size else v_clf_select.k_feature_idx_
             
-        elif args.clf == 'rfe':
+        elif args.select == 'rfe':
             print('a_clf.ranking_')
             print(a_clf.ranking_)
             print('v_clf.ranking_')
@@ -276,13 +276,13 @@ def main():
     print("Valence => Accuracy: {}, F1score: {}".format(
         np.mean(val_v_accuracy_history), np.mean(val_v_f1score_history)))
     #########################################
-    if args.clf == 'rfe':
+    if args.select == 'rfe':
         np.save('a_rfe_feature_history',a_feature_history)
         np.save('v_rfe_feature_history',v_feature_history)
-    elif args.clf == 'sfs':
+    elif args.select == 'sfs':
         np.save('a_sfs_feature_history',a_feature_history)
         np.save('v_sfs_feature_history',v_feature_history)
-    elif args.clf == 'sbs':    
+    elif args.select == 'sbs':    
         np.save('a_sfs_feature_history',a_feature_history)
         np.save('v_sfs_feature_history',v_feature_history)
 
