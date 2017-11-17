@@ -9,7 +9,7 @@ import numpy as np
 from PyEMD import EMD
 from scipy.signal import butter, lfilter, filtfilt, welch
 
-from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM
+from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM, FEATURE_NAMES
 from sklearn.feature_selection import f_regression
 
 def pvalue(path):
