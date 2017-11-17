@@ -242,7 +242,7 @@ def main():
         
         
         #####################
-        if args.clf == 'sfs' or args.clf == 'sfs':
+        if args.clf == 'sfs' or args.clf == 'sbs':
             print('a_clf_select.k_feature_idx_')
             print(a_clf_select.k_feature_idx_)
             print('v_clf_select.k_feature_idx_')
