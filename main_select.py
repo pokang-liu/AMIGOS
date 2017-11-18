@@ -177,8 +177,8 @@ def main():
         # val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
 
         # fit classifier
-        a_clf.fit(train_data, train_a_labels)
-        v_clf.fit(train_data, train_v_labels)
+        #a_clf.fit(train_data, train_a_labels)
+        #v_clf.fit(train_data, train_v_labels)
 ###################################################
         if args.select == 'rfe':
             a_clf.fit(train_data, train_a_labels)
