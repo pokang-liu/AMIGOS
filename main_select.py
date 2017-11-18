@@ -16,7 +16,6 @@ from sklearn.metrics import accuracy_score, f1_score
 import xgboost as xgb
 
 from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM
-from fisher import fisher, feature_selection
 
 from sklearn.feature_selection import RFE
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
