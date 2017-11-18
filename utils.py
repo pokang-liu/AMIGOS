@@ -46,26 +46,27 @@ def pvalue(path):
     for i in range(a_pvalues[a_pvalues < 0.05].size):
         print("Features: {}".format(FEATURE_NAMES[np.where(v_pvalues < 0.05)[0][i]]))
         
-def fisher_selection(h, features, labels):
-    def fisher(features, labels):
-        labels = np.array(labels)
-        labels0 = np.where(labels < 1)
-        labels1 = np.where(labels > 0)
-        labels0 = np.array(labels0).flatten()
-        labels1 = np.array(labels1).flatten()    
-        features0 = np.delete(features, labels1, axis=0)
-        features1 = np.delete(features, labels0, axis=0)
-        mean_features0 = np.mean(features0, axis=0)
-        mean_features1 = np.mean(features1, axis=0)        
-        std_features0 = np.std(features0, axis=0)
-        std_features1 = np.std(features1, axis=0)
-        std_sum = std_features1**2 + std_features0**2
-        Fisher = (abs(mean_features0 - mean_features1)) / std_sum
-        Fisher = np.array(Fisher)    
-        Fisher_sorted = np.argsort(Fisher)# sort the fisher from small to large
-        sorted_feature_idx = Fisher_sorted[::-1]# arrange from large to small        
-        return sorted_feature_idx
-    sorted_feature_idx = fisher(features, labels)
+def fisher_idx(features, labels):
+    labels = np.array(labels)
+    labels0 = np.where(labels < 1)
+    labels1 = np.where(labels > 0)
+    labels0 = np.array(labels0).flatten()
+    labels1 = np.array(labels1).flatten()    
+    features0 = np.delete(features, labels1, axis=0)
+    features1 = np.delete(features, labels0, axis=0)
+    mean_features0 = np.mean(features0, axis=0)
+    mean_features1 = np.mean(features1, axis=0)        
+    std_features0 = np.std(features0, axis=0)
+    std_features1 = np.std(features1, axis=0)
+    std_sum = std_features1**2 + std_features0**2
+    Fisher = (abs(mean_features0 - mean_features1)) / std_sum
+    Fisher = np.array(Fisher)    
+    Fisher_sorted = np.argsort(Fisher)# sort the fisher from small to large
+    sorted_feature_idx = Fisher_sorted[::-1]# arrange from large to small        
+    return sorted_feature_idx
+        
+def fisher_selection(h, features, labels):    
+    sorted_feature_idx = fisher_idx(features, labels)
     h_features = np.zeros((features.shape[0], h))
     for i in range(features.shape[0]):
         for j in range(h):
