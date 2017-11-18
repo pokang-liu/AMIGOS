@@ -199,8 +199,8 @@ def main():
             val_v_data = v_clf_select.transform(val_data)
             # Fit the estimator using the new feature subset
             # and make a prediction on the test data
-            a_clf.fit(train_a_data, y_train)
-            v_clf.fit(train_v_data, y_train)
+            a_clf.fit(train_a_data, train_a_labels)
+            v_clf.fit(train_v_data, train_v_labels)
 
 
 
@@ -247,9 +247,9 @@ def main():
             print(a_clf_select.k_feature_idx_)
             print('v_clf_select.k_feature_idx_')
             print(v_clf_select.k_feature_idx_)
-            a_feature_history = np.vstack((a_feature_history, a_clf_sfs.k_feature_idx_))\
+            a_feature_history = np.vstack((a_feature_history, a_clf_select.k_feature_idx_))\
             if a_feature_history.size else a_clf_select.k_feature_idx_
-            v_feature_history = np.vstack((v_feature_history, v_clf_sfs.k_feature_idx_))\
+            v_feature_history = np.vstack((v_feature_history, a_clf_select.k_feature_idx_))\
             if v_feature_history.size else v_clf_select.k_feature_idx_
             
         elif args.select == 'rfe':
