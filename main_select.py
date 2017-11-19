@@ -21,6 +21,8 @@ from sklearn.feature_selection import RFE
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 
 def main():
+    a_feature_history=np.array([])
+    v_feature_history=np.array([])
     ''' Main function '''
     parser = ArgumentParser(
         description='Affective Computing with AMIGOS Dataset -- Cross Validation')
@@ -30,9 +32,11 @@ def main():
     parser.add_argument('--clf', type=str, choices=['gnb', 'svm', 'xgb'],
                         default='xgb', help='choose type of classifier')
     parser.add_argument('--nor', type=str, choices=['one', 'mean', 'no'],
-                        default='no', help='choose type of classifier')
+                        default='one', help='choose type of classifier')
     parser.add_argument('--select', type=str, choices=['rfe', 'sfs', 'sbs','no'],
                         default='no', help='choose type of feature selection')
+    parser.add_argument('--num', type=int, choices=range(0,256),
+                        default=20, help='choose the number of features')
     args = parser.parse_args()
 
     # read extracted features
@@ -42,6 +46,13 @@ def main():
     labels = np.loadtxt(os.path.join(args.data, 'label.csv'), delimiter=',')
     labels = labels[:, :2]
     a_labels, v_labels = [], []
+    #############use one([-1,1]) to do selection #################
+    amigos_data_max = np.max(amigos_data, axis=0)
+    amigos_data_min = np.min(amigos_data, axis=0)
+    amigos_data = (amigos_data - amigos_data_min) / (amigos_data_max - amigos_data_min)
+    amigos_data = amigos_data * 2 - 1
+    
+    ########## process the labels first#################
     for i in range(SUBJECT_NUM):
         if i + 1 in MISSING_DATA_SUBJECT:
             continue
@@ -62,8 +73,8 @@ def main():
         a_clf = GaussianNB()
         v_clf = GaussianNB()
     elif args.clf == 'svm':
-        a_clf = SVC(C=0.25, kernel='linear')
-        v_clf = SVC(C=0.25, kernel='linear')
+        a_clf = SVC(C=0.9, kernel='linear')
+        v_clf = SVC(C=0.3, kernel='linear')
     elif args.clf == 'xgb':
         a_clf = xgb.XGBClassifier(
             max_depth=5,
@@ -106,21 +117,61 @@ def main():
         
         #################
     if args.select == 'rfe':
-        a_clf = RFE(a_clf, 20)
-        v_clf = RFE(v_clf, 20)
+        a_clf_select = RFE(a_clf, args.num,verbose=1)
+        v_clf_select = RFE(v_clf, args.num,verbose=1)
     elif args.select == 'sfs':
-        a_clf_select  = SFS(a_clf, k_features=20, forward=True, floating=False,\
+        a_clf_select  = SFS(a_clf, k_features=args.num, forward=True, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
-        v_clf_select  = SFS(v_clf, k_features=20, forward=True, floating=False,\
+        v_clf_select  = SFS(v_clf, k_features=args.num, forward=True, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
     elif args.select == 'sbs':
-        a_clf_select  = SFS(a_clf, k_features=20, forward=False, floating=False,\
+        a_clf_select  = SFS(a_clf, k_features=args.num, forward=False, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
-        v_clf_select  = SFS(v_clf, k_features=20, forward=False, floating=False,\
+        v_clf_select  = SFS(v_clf, k_features=args.num, forward=False, floating=False,\
         verbose=2,scoring='accuracy',cv=10)
         
-        ####################################
-    # initialize history list
+       
+        ###################fit###############
+        
+    a_clf_select.fit(amigos_data,a_labels)
+    v_clf_select.fit(amigos_data,v_labels)
+    #################delete other feature ##########
+    a_data = a_clf_select.transform(amigos_data)
+    v_data = v_clf_select.transform(amigos_data)
+ #####################print the ranking of the features after the selections~~~#############
+    if args.select == 'sfs' or args.select == 'sfs':
+        a_clf_select.k_feature_idx_=np.array(a_clf_select.k_feature_idx_)
+        a_clf_select.k_feature_idx_=np.array(v_clf_select.k_feature_idx_)
+        print('a_clf_select.k_feature_idx_{}'.format(args.num))
+        print(a_clf_select.k_feature_idx_)
+        print('v_clf_select.k_feature_idx_{}'.format(args.num))
+        print(v_clf_select.k_feature_idx_)
+       
+        if args.select == 'sfs':
+            np.save('a_sfs_select.ranking_{}'.format(args.num),a_clf_select.k_feature_idx_)
+            np.save('v_rfe_select.ranking_{}'.format(args.num),v_clf_select.k_feature_idx_)
+        if args.select == 'sbs':   
+            np.save('a_sbs_select.ranking_{}'.format(args.num),a_clf_select.k_feature_idx_)
+            np.save('v_sbs_select.ranking_{}'.format(args.num),v_clf_select.k_feature_idx_)
+           
+
+    elif args.select == 'rfe':
+        print('a_clf.ranking_')
+        
+        print(a_clf_select.ranking_)
+        a_clf_select.ranking_=np.where(a_clf_select.ranking_==1)
+        np.save('a_rfe_select.k_feature_idx_',a_clf_select.ranking_)
+        print('v_clf.ranking_')
+        print(v_clf_select.ranking_)
+        v_clf_select.ranking_=np.where(v_clf_select.ranking_==1)
+        np.save('v_rfe_select.k_feature_idx_',v_clf_select.ranking_)
+            ####################################
+
+            
+            
+            
+            #############################
+       # initialize history list
     train_a_accuracy_history = []
     train_v_accuracy_history = []
     train_a_f1score_history = []
@@ -144,7 +195,8 @@ def main():
         elif args.feat == 'gsr':
             train_data, val_data = amigos_data[train_idx][256:], amigos_data[val_idx][256:]
         elif args.feat == 'all':
-            train_data, val_data = amigos_data[train_idx], amigos_data[val_idx]
+            train_a_data, val_a_data = a_data[train_idx], a_data[val_idx]
+            train_v_data, val_v_data = v_data[train_idx], v_data[val_idx]
         train_a_labels, val_a_labels = a_labels[train_idx], a_labels[val_idx]
         train_v_labels, val_v_labels = v_labels[train_idx], v_labels[val_idx]
 
@@ -156,6 +208,7 @@ def main():
             val_data_mean = np.mean(val_data, axis=0)
             val_data_std = np.std(val_data, axis=0)
             val_data = (val_data - val_data_mean) / val_data_std
+            '''
         elif args.nor == 'one':
             # map features to [-1, 1]
             train_data_max = np.max(train_data, axis=0)
@@ -166,51 +219,18 @@ def main():
             val_data_min = np.min(val_data, axis=0)
             val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
             val_data = val_data * 2 - 1
-
-        # fisher feature selection
-        # sorted_v_feature_idx = fisher(train_data, train_a_labels)
-        # train_v_data = feature_selection(50, train_data, sorted_v_feature_idx)
-        # val_v_data = feature_selection(50, val_data, sorted_v_feature_idx)
-        # sorted_a_feature_idx = fisher(train_data,train_a_labels)
-        # train_a_data = feature_selection(50, train_data, sorted_a_feature_idx)
-        # val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
+'''
+ 
 
         # fit classifier
-        #a_clf.fit(train_data, train_a_labels)
-        #v_clf.fit(train_data, train_v_labels)
-###################################################
-        if args.select == 'rfe':
-            a_clf.fit(train_data, train_a_labels)
-            v_clf.fit(train_data, train_v_labels)
-        elif args.select == 'sfs':
-           a_clf_select.fit(train_data, train_a_labels)
-           v_clf_select.fit(train_data, train_v_labels)
-        elif args.select == 'sbs':
-           a_clf_select.fit(train_data, train_a_labels)
-           v_clf_select.fit(train_data, train_v_labels)
-
-####################################################
-        #################sfs sbs refit##########
-        if args.select == 'sfs'or args.select == 'sbs':
-            train_a_data = a_clf_select.transform(train_data)
-            val_a_data = a_clf_select.transform(val_data)
-            train_v_data = v_clf_select.transform(train_data)
-            val_v_data = v_clf_select.transform(val_data)
-            # Fit the estimator using the new feature subset
-            # and make a prediction on the test data
-            a_clf.fit(train_a_data, train_a_labels)
-            v_clf.fit(train_v_data, train_v_labels)
-
-
-
-
-
+        a_clf.fit(train_a_data, train_a_labels)
+        v_clf.fit(train_v_data, train_v_labels)
 ###################################################
         # predict arousal and valence
-        train_a_predict_labels = a_clf.predict(train_data)
-        train_v_predict_labels = v_clf.predict(train_data)
-        val_a_predict_labels = a_clf.predict(val_data)
-        val_v_predict_labels = v_clf.predict(val_data)
+        train_a_predict_labels = a_clf.predict(train_a_data)
+        train_v_predict_labels = v_clf.predict(train_v_data)
+        val_a_predict_labels = a_clf.predict(val_a_data)
+        val_v_predict_labels = v_clf.predict(val_v_data)
 
         # metrics calculation (accuracy and f1 score)
         train_a_accuracy = accuracy_score(train_a_labels, train_a_predict_labels)
@@ -240,26 +260,7 @@ def main():
         print("Valence: Accuracy: {}, F1score: {}".format(val_v_accuracy, val_v_f1score))
         
         
-        #####################
-        if args.select == 'sfs' or args.select == 'sfs':
-            print('a_clf_select.k_feature_idx_')
-            print(a_clf_select.k_feature_idx_)
-            print('v_clf_select.k_feature_idx_')
-            print(v_clf_select.k_feature_idx_)
-            a_feature_history = np.vstack((a_feature_history, a_clf_select.k_feature_idx_))\
-            if a_feature_history.size else a_clf_select.k_feature_idx_
-            v_feature_history = np.vstack((v_feature_history, a_clf_select.k_feature_idx_))\
-            if v_feature_history.size else v_clf_select.k_feature_idx_
-            
-        elif args.select == 'rfe':
-            print('a_clf.ranking_')
-            print(a_clf.ranking_)
-            print('v_clf.ranking_')
-            print(v_clf.ranking_)
-            a_feature_history = np.vstack((a_feature_history, a_clf.ranking_))\
-            if a_feature_history.size else a_clf_select.ranking_
-            v_feature_history = np.vstack((v_feature_history, v_clf.ranking_))\
-            if v_feature_history.size else v_clf_select.ranking_
+
             
     print('\nDone. Duration: ', time.time() - start_time)
 
@@ -275,16 +276,7 @@ def main():
     print("Valence => Accuracy: {}, F1score: {}".format(
         np.mean(val_v_accuracy_history), np.mean(val_v_f1score_history)))
     #########################################
-    if args.select == 'rfe':
-        np.save('a_rfe_feature_history',a_feature_history)
-        np.save('v_rfe_feature_history',v_feature_history)
-    elif args.select == 'sfs':
-        np.save('a_sfs_feature_history',a_feature_history)
-        np.save('v_sfs_feature_history',v_feature_history)
-    elif args.select == 'sbs':    
-        np.save('a_sfs_feature_history',a_feature_history)
-        np.save('v_sfs_feature_history',v_feature_history)
-
+   
 if __name__ == '__main__':
 
     main()
