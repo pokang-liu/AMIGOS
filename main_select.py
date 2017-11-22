@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -161,11 +162,13 @@ def main():
 
         print(a_clf_select.ranking_)
         a_clf_select.ranking_ = np.where(a_clf_select.ranking_ == 1)
-        np.save("a_rfe_select.k_feature_idx_{}".format(args.num), a_clf_select.ranking_)
+        a_clf_select.ranking_ =a_clf_select.ranking_[0]
+        np.save("a_rfe_select.ranking_{}".format(args.num), a_clf_select.ranking_)
         print('v_clf.ranking_')
         print(v_clf_select.ranking_)
         v_clf_select.ranking_ = np.where(v_clf_select.ranking_ == 1)
-        np.save("v_rfe_select.k_feature_idx_{}".format(args.num), v_clf_select.ranking_)
+        v_clf_select.ranking_ =v_clf_select.ranking_[0]
+        np.save("v_rfe_select.ranking_{}".format(args.num), v_clf_select.ranking_)
         ####################################
 
         #############################
