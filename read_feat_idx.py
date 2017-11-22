@@ -1,13 +1,12 @@
-import xlsxwriter
+import sys
 import numpy as np
-feat= np.load('a_rfe_feature_history.npy')
 
+from config import FEATURE_NAMES
 
-workbook = xlsxwriter.Workbook('a_rfe_feat_idx.xlsx')
-worksheet = workbook.add_worksheet()
-for i in range(feat.shape[0]):
-    for j in range(feat.shape[1]):
-        worksheet.write(i,j,feat[i][j])
-workbook.close()
+feat = np.load("{}.npy".format(sys.argv[1]))
 
+feat = np.array(FEATURE_NAMES)[feat[0]]
 
+with open(sys.argv[1], 'w') as a_file:
+    for f in feat:
+        a_file.write("{}\n".format(f))

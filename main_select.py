@@ -20,9 +20,10 @@ from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM
 from sklearn.feature_selection import RFE
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 
+
 def main():
-    a_feature_history=np.array([])
-    v_feature_history=np.array([])
+    a_feature_history = np.array([])
+    v_feature_history = np.array([])
     ''' Main function '''
     parser = ArgumentParser(
         description='Affective Computing with AMIGOS Dataset -- Cross Validation')
@@ -33,9 +34,9 @@ def main():
                         default='xgb', help='choose type of classifier')
     parser.add_argument('--nor', type=str, choices=['one', 'mean', 'no'],
                         default='one', help='choose type of classifier')
-    parser.add_argument('--select', type=str, choices=['rfe', 'sfs', 'sbs','no'],
+    parser.add_argument('--select', type=str, choices=['rfe', 'sfs', 'sbs', 'no'],
                         default='no', help='choose type of feature selection')
-    parser.add_argument('--num', type=int, choices=range(0,256),
+    parser.add_argument('--num', type=int, choices=range(0, 256),
                         default=20, help='choose the number of features')
     args = parser.parse_args()
 
@@ -47,11 +48,12 @@ def main():
     labels = labels[:, :2]
     a_labels, v_labels = [], []
     #############use one([-1,1]) to do selection #################
+    amigos_data = np.copy(amigos_data)
     amigos_data_max = np.max(amigos_data, axis=0)
     amigos_data_min = np.min(amigos_data, axis=0)
     amigos_data = (amigos_data - amigos_data_min) / (amigos_data_max - amigos_data_min)
     amigos_data = amigos_data * 2 - 1
-    
+
     ########## process the labels first#################
     for i in range(SUBJECT_NUM):
         if i + 1 in MISSING_DATA_SUBJECT:
@@ -114,63 +116,59 @@ def main():
             base_score=0.5,
             seed=0
         )
-        
+
         #################
     if args.select == 'rfe':
-        a_clf_select = RFE(a_clf, args.num,verbose=1)
-        v_clf_select = RFE(v_clf, args.num,verbose=1)
+        a_clf_select = RFE(a_clf, args.num, verbose=1)
+        v_clf_select = RFE(v_clf, args.num, verbose=1)
     elif args.select == 'sfs':
-        a_clf_select  = SFS(a_clf, k_features=args.num, forward=True, floating=False,\
-        verbose=2,scoring='accuracy',cv=10)
-        v_clf_select  = SFS(v_clf, k_features=args.num, forward=True, floating=False,\
-        verbose=2,scoring='accuracy',cv=10)
+        a_clf_select = SFS(a_clf, k_features=args.num, forward=True,
+                           floating=False, verbose=2, scoring='accuracy', cv=10)
+        v_clf_select = SFS(v_clf, k_features=args.num, forward=True,
+                           floating=False, verbose=2, scoring='accuracy', cv=10)
     elif args.select == 'sbs':
-        a_clf_select  = SFS(a_clf, k_features=args.num, forward=False, floating=False,\
-        verbose=2,scoring='accuracy',cv=10)
-        v_clf_select  = SFS(v_clf, k_features=args.num, forward=False, floating=False,\
-        verbose=2,scoring='accuracy',cv=10)
-        
-       
+        a_clf_select = SFS(a_clf, k_features=args.num, forward=False,
+                           floating=False, verbose=2, scoring='accuracy', cv=10)
+        v_clf_select = SFS(v_clf, k_features=args.num, forward=False,
+                           floating=False, verbose=2, scoring='accuracy', cv=10)
+
         ###################fit###############
-        
-    a_clf_select.fit(amigos_data,a_labels)
-    v_clf_select.fit(amigos_data,v_labels)
+
+    a_clf_select.fit(amigos_data, a_labels)
+    v_clf_select.fit(amigos_data, v_labels)
     #################delete other feature ##########
+    amigos_data = amigos_data * (amigos_data_max - amigos_data_min) + amigos_data_min
     a_data = a_clf_select.transform(amigos_data)
     v_data = v_clf_select.transform(amigos_data)
  #####################print the ranking of the features after the selections~~~#############
     if args.select == 'sfs' or args.select == 'sfs':
-        a_clf_select.k_feature_idx_=np.array(a_clf_select.k_feature_idx_)
-        a_clf_select.k_feature_idx_=np.array(v_clf_select.k_feature_idx_)
-        print('a_clf_select.k_feature_idx_{}'.format(args.num))
+        a_clf_select.k_feature_idx_ = np.array(a_clf_select.k_feature_idx_)
+        a_clf_select.k_feature_idx_ = np.array(v_clf_select.k_feature_idx_)
+        print("a_clf_select.k_feature_idx_{}".format(args.num))
         print(a_clf_select.k_feature_idx_)
-        print('v_clf_select.k_feature_idx_{}'.format(args.num))
+        print("v_clf_select.k_feature_idx_{}".format(args.num))
         print(v_clf_select.k_feature_idx_)
-       
+
         if args.select == 'sfs':
-            np.save('a_sfs_select.ranking_{}'.format(args.num),a_clf_select.k_feature_idx_)
-            np.save('v_rfe_select.ranking_{}'.format(args.num),v_clf_select.k_feature_idx_)
-        if args.select == 'sbs':   
-            np.save('a_sbs_select.ranking_{}'.format(args.num),a_clf_select.k_feature_idx_)
-            np.save('v_sbs_select.ranking_{}'.format(args.num),v_clf_select.k_feature_idx_)
-           
+            np.save("a_sfs_select.ranking_{}".format(args.num), a_clf_select.k_feature_idx_)
+            np.save("v_sfs_select.ranking_{}".format(args.num), v_clf_select.k_feature_idx_)
+        if args.select == 'sbs':
+            np.save("a_sbs_select.ranking_{}".format(args.num), a_clf_select.k_feature_idx_)
+            np.save("v_sbs_select.ranking_{}".format(args.num), v_clf_select.k_feature_idx_)
 
     elif args.select == 'rfe':
         print('a_clf.ranking_')
-        
+
         print(a_clf_select.ranking_)
-        a_clf_select.ranking_=np.where(a_clf_select.ranking_==1)
-        np.save('a_rfe_select.k_feature_idx_',a_clf_select.ranking_)
+        a_clf_select.ranking_ = np.where(a_clf_select.ranking_ == 1)
+        np.save("a_rfe_select.k_feature_idx_{}".format(args.num), a_clf_select.ranking_)
         print('v_clf.ranking_')
         print(v_clf_select.ranking_)
-        v_clf_select.ranking_=np.where(v_clf_select.ranking_==1)
-        np.save('v_rfe_select.k_feature_idx_',v_clf_select.ranking_)
-            ####################################
+        v_clf_select.ranking_ = np.where(v_clf_select.ranking_ == 1)
+        np.save("v_rfe_select.k_feature_idx_{}".format(args.num), v_clf_select.ranking_)
+        ####################################
 
-            
-            
-            
-            #############################
+        #############################
        # initialize history list
     train_a_accuracy_history = []
     train_v_accuracy_history = []
@@ -180,8 +178,8 @@ def main():
     val_v_accuracy_history = []
     val_a_f1score_history = []
     val_v_f1score_history = []
-    a_feature_history=np.array([])
-    v_feature_history=np.array([])
+    a_feature_history = np.array([])
+    v_feature_history = np.array([])
     start_time = time.time()
 
     for idx, (train_idx, val_idx) in enumerate(kf.split(amigos_data)):
@@ -202,25 +200,37 @@ def main():
 
         if args.nor == 'mean':
             # normalize using mean and std
-            train_data_mean = np.mean(train_data, axis=0)
-            train_data_std = np.std(train_data, axis=0)
-            train_data = (train_data - train_data_mean) / train_data_std
-            val_data_mean = np.mean(val_data, axis=0)
-            val_data_std = np.std(val_data, axis=0)
-            val_data = (val_data - val_data_mean) / val_data_std
-            '''
+            train_a_data_mean = np.mean(train_a_data, axis=0)
+            train_v_data_mean = np.mean(train_v_data, axis=0)
+            train_a_data_std = np.std(train_a_data, axis=0)
+            train_v_data_std = np.std(train_v_data, axis=0)
+            train_a_data = (train_a_data - train_a_data_mean) / train_a_data_std
+            train_v_data = (train_v_data - train_v_data_mean) / train_v_data_std
+            val_a_data_mean = np.mean(val_a_data, axis=0)
+            val_v_data_mean = np.mean(val_v_data, axis=0)
+            val_a_data_std = np.std(val_a_data, axis=0)
+            val_v_data_std = np.std(val_v_data, axis=0)
+            val_a_data = (val_a_data - val_a_data_mean) / val_a_data_std
+            val_v_data = (val_v_data - val_v_data_mean) / val_v_data_std
+
         elif args.nor == 'one':
             # map features to [-1, 1]
-            train_data_max = np.max(train_data, axis=0)
-            train_data_min = np.min(train_data, axis=0)
-            train_data = (train_data - train_data_min) / (train_data_max - train_data_min)
-            train_data = train_data * 2 - 1
-            val_data_max = np.max(val_data, axis=0)
-            val_data_min = np.min(val_data, axis=0)
-            val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
-            val_data = val_data * 2 - 1
-'''
- 
+            train_a_data_max = np.max(train_a_data, axis=0)
+            train_v_data_max = np.max(train_v_data, axis=0)
+            train_a_data_min = np.min(train_a_data, axis=0)
+            train_v_data_min = np.min(train_v_data, axis=0)
+            train_a_data = (train_a_data - train_a_data_min) / (train_a_data_max - train_a_data_min)
+            train_v_data = (train_v_data - train_v_data_min) / (train_v_data_max - train_v_data_min)
+            train_a_data = train_a_data * 2 - 1
+            train_v_data = train_v_data * 2 - 1
+            val_a_data_max = np.max(val_a_data, axis=0)
+            val_v_data_max = np.max(val_v_data, axis=0)
+            val_a_data_min = np.min(val_a_data, axis=0)
+            val_v_data_min = np.min(val_v_data, axis=0)
+            val_a_data = (val_a_data - val_a_data_min) / (val_a_data_max - val_a_data_min)
+            val_v_data = (val_v_data - val_v_data_min) / (val_v_data_max - val_v_data_min)
+            val_a_data = val_a_data * 2 - 1
+            val_v_data = val_v_data * 2 - 1
 
         # fit classifier
         a_clf.fit(train_a_data, train_a_labels)
@@ -258,10 +268,7 @@ def main():
         print('Validating Result')
         print("Arousal: Accuracy: {}, F1score: {}".format(val_a_accuracy, val_a_f1score))
         print("Valence: Accuracy: {}, F1score: {}".format(val_v_accuracy, val_v_f1score))
-        
-        
 
-            
     print('\nDone. Duration: ', time.time() - start_time)
 
     print('\nAverage Training Result')
@@ -276,7 +283,8 @@ def main():
     print("Valence => Accuracy: {}, F1score: {}".format(
         np.mean(val_v_accuracy_history), np.mean(val_v_f1score_history)))
     #########################################
-   
+
+
 if __name__ == '__main__':
 
     main()
