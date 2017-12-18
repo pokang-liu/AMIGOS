@@ -1,7 +1,8 @@
 __pycache__/
 
 data/*
-model/*
+history/*
+plot/*
 
 !data/features.csv
 !data/label.csv

@@ -8,6 +8,7 @@ Affective Computing with AMIGOS Dataset
 from argparse import ArgumentParser
 import os
 import time
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
@@ -15,8 +16,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, f1_score
 import xgboost as xgb
 
-from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM
-from fisher import fisher, feature_selection
+from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM, FEATURE_NAMES
 
 
 def main():
@@ -30,6 +30,7 @@ def main():
                         default='xgb', help='choose type of classifier')
     parser.add_argument('--nor', type=str, choices=['one', 'mean', 'no'],
                         default='no', help='choose type of classifier')
+    parser.add_argument('--fish', action='store_true')
     args = parser.parse_args()
 
     # read extracted features
@@ -52,15 +53,16 @@ def main():
     a_labels, v_labels = np.array(a_labels), np.array(v_labels)
 
     # setup kfold cross validator
-    kf = KFold(n_splits=SUBJECT_NUM - len(MISSING_DATA_SUBJECT))
+    sub_num = SUBJECT_NUM - len(MISSING_DATA_SUBJECT)
+    kf = KFold(n_splits=sub_num)
 
     # setup classifier
     if args.clf == 'gnb':
         a_clf = GaussianNB()
         v_clf = GaussianNB()
     elif args.clf == 'svm':
-        a_clf = SVC(C=0.25, kernel='linear')
-        v_clf = SVC(C=0.25, kernel='linear')
+        a_clf = SVC(C=0.9, kernel='linear')
+        v_clf = SVC(C=0.3, kernel='linear')
     elif args.clf == 'xgb':
         a_clf = xgb.XGBClassifier(
             max_depth=5,
@@ -111,6 +113,9 @@ def main():
     val_a_f1score_history = []
     val_v_f1score_history = []
 
+    a_imps = np.zeros((sub_num, len(FEATURE_NAMES)))
+    v_imps = np.zeros((sub_num, len(FEATURE_NAMES)))
+
     start_time = time.time()
 
     for idx, (train_idx, val_idx) in enumerate(kf.split(amigos_data)):
@@ -147,17 +152,18 @@ def main():
             val_data = (val_data - val_data_min) / (val_data_max - val_data_min)
             val_data = val_data * 2 - 1
 
-        # fisher feature selection
-        # sorted_v_feature_idx = fisher(train_data, train_a_labels)
-        # train_v_data = feature_selection(50, train_data, sorted_v_feature_idx)
-        # val_v_data = feature_selection(50, val_data, sorted_v_feature_idx)
-        # sorted_a_feature_idx = fisher(train_data,train_a_labels)
-        # train_a_data = feature_selection(50, train_data, sorted_a_feature_idx)
-        # val_a_data = feature_selection(50, val_data, sorted_a_feature_idx)
-
         # fit classifier
         a_clf.fit(train_data, train_a_labels)
         v_clf.fit(train_data, train_v_labels)
+
+        a_imp = a_clf.get_booster().get_fscore()
+        a_tuples= [(k, a_imp[k]) for k in a_imp]
+        for i, (_, value) in enumerate(sorted(a_tuples, key=lambda x: int(x[0][1:]))):
+            a_imps[idx][i] = value
+        v_imp = v_clf.get_booster().get_fscore()
+        v_tuples= [(k, v_imp[k]) for k in v_imp]
+        for i, (_, value) in enumerate(sorted(v_tuples, key=lambda x: int(x[0][1:]))):
+            v_imps[idx][i] = value
 
         # predict arousal and valence
         train_a_predict_labels = a_clf.predict(train_data)
@@ -205,6 +211,36 @@ def main():
         np.mean(val_a_accuracy_history), np.mean(val_a_f1score_history)))
     print("Valence => Accuracy: {}, F1score: {}".format(
         np.mean(val_v_accuracy_history), np.mean(val_v_f1score_history)))
+
+    a_imps = np.mean(a_imps, axis=0)
+    v_imps = np.mean(v_imps, axis=0)
+    a_imps_idx = np.argsort(a_imps)[::-1]
+    v_imps_idx = np.argsort(v_imps)[::-1]
+    a_imps = np.sort(a_imps)[::-1]
+    v_imps = np.sort(v_imps)[::-1]
+    a_imps_name = []
+    v_imps_name = []
+    for i in range(a_imps_idx.size):
+        a_imps_name.append(FEATURE_NAMES[a_imps_idx[i]])
+        v_imps_name.append(FEATURE_NAMES[v_imps_idx[i]])
+
+    max_num = 10
+    a_imps = a_imps[:max_num]
+    v_imps = v_imps[:max_num]
+    a_imps_name = a_imps_name[:max_num]
+    v_imps_name = v_imps_name[:max_num]
+
+    plt.bar(np.arange(a_imps.size), a_imps)
+    plt.title('Arousal Feature Importance')
+    plt.ylabel('F Score')
+    plt.xticks(np.arange(a_imps.size), a_imps_name)
+    plt.show()
+
+    plt.bar(np.arange(v_imps.size), v_imps)
+    plt.title('Valence Feature Importance')
+    plt.ylabel('F Score')
+    plt.xticks(np.arange(v_imps.size), v_imps_name)
+    plt.show()
 
 
 if __name__ == '__main__':
