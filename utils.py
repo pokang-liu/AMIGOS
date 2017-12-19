@@ -4,18 +4,23 @@
 '''
 Utilities
 '''
+
+import itertools
 import os
 import numpy as np
 from PyEMD import EMD
 from scipy.signal import butter, lfilter, filtfilt, welch
 
 from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM, FEATURE_NAMES
-from sklearn.feature_selection import f_regression
+from sklearn.feature_selection import f_classif
+
+TMP_FEATURE_NAMES = ['ibi_pe', 'nor_signals_pe', 'nor_con_signals_pe']
+
 
 def pvalue(path):
     ''' Calculate P-value '''
     # read extracted features
-    amigos_data = np.loadtxt(os.path.join(path, 'features.csv'), delimiter=',')
+    amigos_data = np.loadtxt(os.path.join(path, 'entropy_features.csv'), delimiter=',')
 
     # read labels and split to 0 and 1 by
     labels = np.loadtxt(os.path.join(path, 'label.csv'), delimiter=',')
@@ -33,18 +38,21 @@ def pvalue(path):
             v_labels.append(v_tmp)
     a_labels, v_labels = np.array(a_labels), np.array(v_labels)
 
-    _, a_pvalues = f_regression(amigos_data, a_labels)
-    _, v_pvalues = f_regression(amigos_data, v_labels)
+    _, a_pvalues = f_classif(amigos_data, a_labels)
+    _, v_pvalues = f_classif(amigos_data, v_labels)
+
+    print(a_pvalues)
+    print(v_pvalues)
 
     print('\nUse Arousal Labels')
     print("Number of features (p < 0.05): {}".format(a_pvalues[a_pvalues < 0.05].size))
     for i in range(a_pvalues[a_pvalues < 0.05].size):
-        print("Features: {}".format(FEATURE_NAMES[np.where(a_pvalues < 0.05)[0][i]]))
+        print("Features: {}, Value: {}".format(TMP_FEATURE_NAMES[np.where(a_pvalues < 0.05)[0][i]], a_pvalues[np.where(a_pvalues < 0.05)[0][i]]))
 
     print('\nUse Valence Labels')
     print("Number of features (p < 0.05): {}".format(v_pvalues[v_pvalues < 0.05].size))
-    for i in range(a_pvalues[a_pvalues < 0.05].size):
-        print("Features: {}".format(FEATURE_NAMES[np.where(v_pvalues < 0.05)[0][i]]))
+    for i in range(v_pvalues[v_pvalues < 0.05].size):
+        print("Features: {}, Value: {}".format(TMP_FEATURE_NAMES[np.where(v_pvalues < 0.05)[0][i]], v_pvalues[np.where(v_pvalues < 0.05)[0][i]]))
 
 def fisher_idx(num, features, labels):
     ''' Get idx sorted by fisher linear discriminant '''
@@ -131,9 +139,119 @@ def detrend(data):
     return detrended, trend
 
 
+def sample_entropy(time_series, sample_length, tolerance=None):
+    """Calculate and return Sample Entropy of the given time series.
+    Distance between two vectors defined as Euclidean distance and can
+    be changed in future releases
+    Args:
+        time_series: Vector or string of the sample data
+        sample_length: Number of sequential points of the time series
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Vector containing Sample Entropy (float)
+    References:
+        [1] http://en.wikipedia.org/wiki/Sample_Entropy
+        [2] http://physionet.incor.usp.br/physiotools/sampen/
+        [3] Madalena Costa, Ary Goldberger, CK Peng. Multiscale entropy analysis
+            of biological signals
+    """
+    if tolerance is None:
+        tolerance = 0.1 * np.std(time_series)
+
+    n = len(time_series)
+    prev = np.zeros(n)
+    curr = np.zeros(n)
+    A = np.zeros((sample_length, 1))  # number of matches for m = [1,...,template_length - 1]
+    B = np.zeros((sample_length, 1))  # number of matches for m = [1,...,template_length]
+
+    for i in range(n - 1):
+        nj = n - i - 1
+        ts1 = time_series[i]
+        for jj in range(nj):
+            j = jj + i + 1
+            if abs(time_series[j] - ts1) < tolerance:  # distance between two vectors
+                curr[jj] = prev[jj] + 1
+                temp_ts_length = min(sample_length, curr[jj])
+                for m in range(int(temp_ts_length)):
+                    A[m] += 1
+                    if j < n - 1:
+                        B[m] += 1
+            else:
+                curr[jj] = 0
+        for j in range(nj):
+            prev[j] = curr[j]
+
+    N = n * (n - 1) / 2
+    B = np.vstack(([N], B[:sample_length - 1]))
+    similarity_ratio = A / B
+    se = -np.log(similarity_ratio)
+    se = np.reshape(se, -1)
+    return se
+
+
+def multiscale_entropy(time_series, sample_length, tolerance):
+    """Calculate the Multiscale Entropy of the given time series considering
+    different time-scales of the time series.
+    Args:
+        time_series: Time series for analysis
+        sample_length: Bandwidth or group of points
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Vector containing Multiscale Entropy
+    Reference:
+        [1] http://en.pudn.com/downloads149/sourcecode/math/detail646216_en.html
+    """
+    n = len(time_series)
+    mse = np.zeros((1, sample_length))
+
+    for i in range(sample_length):
+        b = int(np.fix(n / (i + 1)))
+        temp_ts = [0] * int(b)
+        for j in range(b):
+            num = sum(time_series[j * (i + 1): (j + 1) * (i + 1)])
+            den = i + 1
+            temp_ts[j] = float(num) / float(den)
+        se = sample_entropy(temp_ts, 1, tolerance)
+        mse[0, i] = se
+
+    return mse[0]
+
+
+def permutation_entropy(time_series, m, delay):
+    """Calculate the Permutation Entropy
+    Args:
+        time_series: Time series for analysis
+        m: Order of permutation entropy
+        delay: Time delay
+    Returns:
+        Vector containing Permutation Entropy
+    Reference:
+        [1] Massimiliano Zanin et al. Permutation Entropy and Its Main Biomedical and Econophysics Applications:
+            A Review. http://www.mdpi.com/1099-4300/14/8/1553/pdf
+        [2] Christoph Bandt and Bernd Pompe. Permutation entropy — a natural complexity
+            measure for time series. http://stubber.math-inf.uni-greifswald.de/pub/full/prep/2001/11.pdf
+        [3] http://www.mathworks.com/matlabcentral/fileexchange/37289-permutation-entropy/content/pec.m
+    """
+    n = len(time_series)
+    permutations = np.array(list(itertools.permutations(range(m))))
+    c = [0] * len(permutations)
+
+    for i in range(n - delay * (m - 1)):
+        sorted_index_array = np.argsort(time_series[i:i + delay * m:delay], kind='quicksort')
+        for j in range(len(permutations)):
+            if abs(permutations[j] - sorted_index_array).any() == 0:
+                c[j] += 1
+
+    c = [element for element in c if element != 0]
+    p = np.divide(np.array(c), float(sum(c)))
+    pe = -sum(p * np.log(p))
+    return pe
+
+
 def main():
     ''' Main function '''
     # Should write some tests
+    pvalue('data')
 
 
 if __name__ == '__main__':
