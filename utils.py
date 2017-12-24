@@ -169,7 +169,7 @@ def sample_entropy(time_series, sample_length, tolerance=None):
 
     N = n * (n - 1) / 2
     B = np.vstack(([N], B[:sample_length - 1]))
-    similarity_ratio = (A+epsilon )/B
+    similarity_ratio = (A+epsilon)/B
     se = -np.log(similarity_ratio)
     se = np.reshape(se, -1)
     return se
@@ -238,7 +238,7 @@ def util_granulate_time_series(time_series, scale):
         cts[i] = np.mean(time_series[i * scale: (i + 1) * scale])
     return cts
 
-def composite_multiscale_entropy(time_series, sample_length, scale, tolerance=None):
+def composite_multiscale_entropy(time_series, m, scale, tolerance=None):
     """Calculate the Composite Multiscale Entropy of the given time series.
     Args:
         time_series: Time series for analysis
@@ -256,7 +256,8 @@ def composite_multiscale_entropy(time_series, sample_length, scale, tolerance=No
     for i in range(scale):
         for j in range(i):
             tmp = util_granulate_time_series(time_series[j:], i + 1)
-            cmse[i] += sample_entropy(tmp, sample_length, tolerance) / (i + 1)
+            tmpse=sample_entropy(tmp, m, tolerance) / (i + 1)
+            cmse[i] += tmpse[-1]
 
     return cmse
     
