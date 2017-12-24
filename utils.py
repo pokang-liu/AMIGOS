@@ -247,7 +247,20 @@ def permutation_entropy(time_series, m, delay):
     pe = -sum(p * np.log(p))
     return pe
 
-
+def util_granulate_time_series(time_series, scale):
+    """Extract coarse-grained time series
+    Args:
+        time_series: Time series
+        scale: Scale factor
+    Returns:
+        Vector of coarse-grained time series with given scale factor
+    """
+    n = len(time_series)
+    b = int(np.fix(n / scale))
+    cts = [0] * b
+    for i in range(b):
+        cts[i] = np.mean(time_series[i * scale: (i + 1) * scale])
+    return cts
 
 def composite_multiscale_entropy(time_series, sample_length, scale, tolerance=None):
     """Calculate the Composite Multiscale Entropy of the given time series.
