@@ -140,21 +140,7 @@ def detrend(data):
 
 
 def sample_entropy(time_series, sample_length, tolerance=None):
-    """Calculate and return Sample Entropy of the given time series.
-    Distance between two vectors defined as Euclidean distance and can
-    be changed in future releases
-    Args:
-        time_series: Vector or string of the sample data
-        sample_length: Number of sequential points of the time series
-        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
-    Returns:
-        Vector containing Sample Entropy (float)
-    References:
-        [1] http://en.wikipedia.org/wiki/Sample_Entropy
-        [2] http://physionet.incor.usp.br/physiotools/sampen/
-        [3] Madalena Costa, Ary Goldberger, CK Peng. Multiscale entropy analysis
-            of biological signals
-    """
+    epsilon=0.000001
     if tolerance is None:
         tolerance = 0.1 * np.std(time_series)
 
@@ -183,39 +169,29 @@ def sample_entropy(time_series, sample_length, tolerance=None):
 
     N = n * (n - 1) / 2
     B = np.vstack(([N], B[:sample_length - 1]))
-    similarity_ratio = A / B
+    similarity_ratio = (A+epsilon) / B
     se = -np.log(similarity_ratio)
     se = np.reshape(se, -1)
     return se
 
 
-def multiscale_entropy(time_series, sample_length, tolerance):
-    """Calculate the Multiscale Entropy of the given time series considering
-    different time-scales of the time series.
-    Args:
-        time_series: Time series for analysis
-        sample_length: Bandwidth or group of points
-        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
-    Returns:
-        Vector containing Multiscale Entropy
-    Reference:
-        [1] http://en.pudn.com/downloads149/sourcecode/math/detail646216_en.html
-    """
-    n = len(time_series)
-    mse = np.zeros((1, sample_length))
+def multiscale_entropy(time_series, scaling_factor , m , tolerance=None):
 
-    for i in range(sample_length):
+    n = len(time_series)
+    mse = np.zeros((1, scaling_factor))
+
+    for i in range(scaling_factor):
         b = int(np.fix(n / (i + 1)))
         temp_ts = [0] * int(b)
         for j in range(b):
             num = sum(time_series[j * (i + 1): (j + 1) * (i + 1)])
             den = i + 1
             temp_ts[j] = float(num) / float(den)
-        se = sample_entropy(temp_ts, 1, tolerance)
-        mse[0, i] = se
+        print(temp_ts)
+        se = sample_entropy(temp_ts, m, tolerance)
+        mse[0, i] = se[-1]
 
     return mse[0]
-
 
 def permutation_entropy(time_series, m, delay):
     """Calculate the Permutation Entropy
