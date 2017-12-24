@@ -248,6 +248,108 @@ def permutation_entropy(time_series, m, delay):
     return pe
 
 
+
+def composite_multiscale_entropy(time_series, sample_length, scale, tolerance=None):
+    """Calculate the Composite Multiscale Entropy of the given time series.
+    Args:
+        time_series: Time series for analysis
+        sample_length: Number of sequential points of the time series
+        scale: Scale factor
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Vector containing Composite Multiscale Entropy
+    Reference:
+        [1] Wu, Shuen-De, et al. "Time series analysis using
+            composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
+    """
+    cmse = np.zeros((1, scale))
+
+    for i in range(scale):
+        for j in range(i):
+            tmp = util_granulate_time_series(time_series[j:], i + 1)
+            cmse[i] += sample_entropy(tmp, sample_length, tolerance) / (i + 1)
+
+    return cmse
+    
+def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, tolerance=None):
+    """Calculate the Composite Multiscale Entropy of the given time series.
+    Args:
+        time_series: Time series for analysis
+        sample_length: Number of sequential points of the time series
+        scale: Scale factor
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Vector containing Composite Multiscale Entropy
+    Reference:
+        [1] Wu, Shuen-De, et al. "Time series analysis using
+            composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
+    """
+    cmse = np.zeros((1, scale))
+    A_sum=0
+    B_sum=0
+
+    for i in range(scale):
+        for j in range(i):
+            tmp = util_granulate_time_series(time_series[j:], i + 1)
+            A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
+            B_sum+= A_B[m+sample_length][0]
+            A_sum+= A_B[m][0]
+    rcmse = - np.log(A_sum/B_sum)
+    return rcmse
+
+def RC_sample_entropy(time_series, sample_length, tolerance=None):
+    """Calculate and return Sample Entropy of the given time series.
+    Distance between two vectors defined as Euclidean distance and can
+    be changed in future releases
+    Args:
+        time_series: Vector or string of the sample data
+        sample_length: Number of sequential points of the time series
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Vector containing Sample Entropy (float)
+    References:
+        [1] http://en.wikipedia.org/wiki/Sample_Entropy
+        [2] http://physionet.incor.usp.br/physiotools/sampen/
+        [3] Madalena Costa, Ary Goldberger, CK Peng. Multiscale entropy analysis
+            of biological signals
+    """
+    if tolerance is None:
+        tolerance = 0.1 * np.std(time_series)
+
+    n = len(time_series)
+    prev = np.zeros(n)
+    curr = np.zeros(n)
+    A = np.zeros((sample_length, 1))  # number of matches for m = [1,...,template_length - 1]
+    B = np.zeros((sample_length, 1))  # number of matches for m = [1,...,template_length]
+
+    for i in range(n - 1):
+        nj = n - i - 1
+        ts1 = time_series[i]
+        for jj in range(nj):
+            j = jj + i + 1
+            if abs(time_series[j] - ts1) < tolerance:  # distance between two vectors
+                curr[jj] = prev[jj] + 1
+                temp_ts_length = min(sample_length, curr[jj])
+                for m in range(int(temp_ts_length)):
+                    A[m] += 1
+                    if j < n - 1:
+                        B[m] += 1
+            else:
+                curr[jj] = 0
+        for j in range(nj):
+            prev[j] = curr[j]
+
+    N = n * (n - 1) / 2
+    B = np.vstack(([N], B[:sample_length - 1]))
+    A_B = np.vstack((A,B))
+    print (A)
+    print (B)
+    print (A_B)
+    
+    return A_B
+
+
+
 def main():
     ''' Main function '''
     # Should write some tests
