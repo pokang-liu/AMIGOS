@@ -187,7 +187,7 @@ def multiscale_entropy(time_series, scaling_factor , m , tolerance=None):
             num = sum(time_series[j * (i + 1): (j + 1) * (i + 1)])
             den = i + 1
             temp_ts[j] = float(num) / float(den)
-        print(temp_ts)
+        #print(temp_ts)
         se = sample_entropy(temp_ts, m, tolerance)
         mse[0, i] = se[-1]
 
