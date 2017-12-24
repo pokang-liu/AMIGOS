@@ -284,16 +284,14 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
         [1] Wu, Shuen-De, et al. "Time series analysis using
             composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
     """
-    cmse = np.zeros((1, scale))
     A_sum=0
     B_sum=0
-
-    for i in range(scale):
-        for j in range(i):
-            tmp = util_granulate_time_series(time_series[j:], i + 1)
-            A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
-            B_sum+= A_B[m+sample_length][0]
-            A_sum+= A_B[m][0]
+    #cmse = np.zeros((1, scale))
+    for j in range(scale):
+        tmp = util_granulate_time_series(time_series[j:], j + 1)
+        A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
+        B_sum+= A_B[m+sample_length][0]
+        A_sum+= A_B[m][0]
     rcmse = - np.log(A_sum/B_sum)
     return rcmse
 
@@ -342,9 +340,9 @@ def RC_sample_entropy(time_series, sample_length, tolerance=None):
     N = n * (n - 1) / 2
     B = np.vstack(([N], B[:sample_length - 1]))
     A_B = np.vstack((A,B))
-    print (A)
-    print (B)
-    print (A_B)
+   #print (A)
+   #print (B)
+   #print (A_B)
     
     return A_B
 
