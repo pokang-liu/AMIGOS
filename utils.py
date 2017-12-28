@@ -255,7 +255,7 @@ def composite_multiscale_entropy(time_series, m, scale, tolerance=None):
 
     for i in range(scale):
         for j in range(i):
-            tmp = util_granulate_time_series(time_series[j:], scale)
+            tmp = util_granulate_time_series(time_series[j:], j+1)
             tmpse=sample_entropy(tmp, m, tolerance) / (i + 1)
             cmse[i] += tmpse[-1]
 
@@ -277,7 +277,7 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
     B_sum=0
     epsilon=0.0000001
     for i in range(scale):
-        tmp = util_granulate_time_series(time_series[i:], i + 1)
+        tmp = util_granulate_time_series(time_series[i:], scale)
         A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
         #print(A_B)
         B_sum+= A_B[m+sample_length-1][0]
