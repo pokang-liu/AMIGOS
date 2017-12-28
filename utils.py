@@ -169,7 +169,7 @@ def sample_entropy(time_series, sample_length, tolerance=None):
 
     N = n * (n - 1) / 2
     B = np.vstack(([N], B[:sample_length - 1]))
-    similarity_ratio = (A+epsilon)/B
+    similarity_ratio = (A)/B
     se = -np.log(similarity_ratio)
     se = np.reshape(se, -1)
     return se
@@ -282,7 +282,7 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
         #print(A_B)
         B_sum+= A_B[m+sample_length-1][0]
         A_sum+= A_B[m-1][0]
-    rcmse = - np.log((A_sum+epsilon)/B_sum)
+    rcmse = - np.log((A_sum)/B_sum)
     return rcmse
 
 def RC_sample_entropy(time_series, sample_length, tolerance=None):
