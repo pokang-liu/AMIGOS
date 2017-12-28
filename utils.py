@@ -276,11 +276,12 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
     A_sum=0
     B_sum=0
     epsilon=0.0000001
-    tmp = util_granulate_time_series(time_series[scale:], scale + 1)
-    A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
-    #print(A_B)
-    B_sum+= A_B[m+sample_length-1][0]
-    A_sum+= A_B[m-1][0]
+    for i in range scale:
+        tmp = util_granulate_time_series(time_series[i:], i + 1)
+        A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
+        #print(A_B)
+        B_sum+= A_B[m+sample_length-1][0]
+        A_sum+= A_B[m-1][0]
     rcmse = - np.log((A_sum+epsilon)/B_sum)
     return rcmse
 
