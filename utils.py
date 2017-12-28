@@ -276,7 +276,7 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
     A_sum=0
     B_sum=0
     epsilon=0.0000001
-    for i in range scale:
+    for i in range(scale):
         tmp = util_granulate_time_series(time_series[i:], i + 1)
         A_B = RC_sample_entropy(tmp, sample_length, tolerance) 
         #print(A_B)
