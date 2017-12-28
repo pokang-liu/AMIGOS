@@ -255,7 +255,7 @@ def composite_multiscale_entropy(time_series, m, scale, tolerance=None):
 
     for i in range(scale):
         for j in range(i):
-            tmp = util_granulate_time_series(time_series[j:], i + 1)
+            tmp = util_granulate_time_series(time_series[j:], scale)
             tmpse=sample_entropy(tmp, m, tolerance) / (i + 1)
             cmse[i] += tmpse[-1]
 
