@@ -97,12 +97,12 @@ def ecg_preprocessing(signals):
     ''' Preprocessing for ECG signals '''
     # some data have high peak value due to noise
     # signals , _ = detrend(signals)
-    signals = butter_highpass_filter(signals, 1.0, 256.0)
-    ecg_all = ecg.ecg(signal=signals, sampling_rate=256., show=False)
+    signals = butter_highpass_filter(signals, 1.0, 128.0)
+    ecg_all = ecg.ecg(signal=signals, sampling_rate=128., show=False)
     rpeaks = ecg_all['rpeaks']  # R-peak location indices.
 
     # ECG
-    freqs, power = getfreqs_power(signals, fs=256., nperseg=signals.size, scaling='spectrum')
+    freqs, power = getfreqs_power(signals, fs=128., nperseg=signals.size, scaling='spectrum')
     power_0_6 = []
     for i in range(60):
         power_0_6.append(getBand_Power(freqs, power, lower=0 + (i * 0.1), upper=0.1 + (i * 0.1)))
