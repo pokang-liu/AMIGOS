@@ -34,12 +34,12 @@ def main():
                         default='one', help='choose type of classifier')
     parser.add_argument('--select', type=str, choices=['fisher', 'rfe', 'no'],
                         default='no', help='choose type of feature selection')
-    parser.add_argument('--num', type=int, choices=range(0, 288),
+    parser.add_argument('--num', type=int, choices=range(0, 338),
                         default=20, help='choose the number of features')
     args = parser.parse_args()
 
     # read extracted features
-    amigos_data = np.loadtxt(os.path.join(args.data, 'features.csv'), delimiter=',')
+    amigos_data = np.loadtxt(os.path.join(args.data, 'mse_pe_features.csv'), delimiter=',')
 
     # read labels and split to 0 and 1 based on individual mean
     labels = np.loadtxt(os.path.join(args.data, 'label.csv'), delimiter=',')
@@ -66,44 +66,44 @@ def main():
         v_clf = GaussianNB()
     elif args.clf == 'svm':
         a_clf = SVC(C=0.75, kernel='linear')
-        v_clf = SVC(C=0.3, kernel='linear')
+        v_clf = SVC(C=0.2, kernel='linear')
     elif args.clf == 'xgb':
         a_clf = xgb.XGBClassifier(
-            max_depth=5,
+            max_depth=3,
             learning_rate=0.1,
-            n_estimators=1500,
+            n_estimators=11,
             silent=True,
             objective="binary:logistic",
             nthread=-1,
             gamma=0,
-            min_child_weight=1,
+            min_child_weight=.96,
             max_delta_step=0,
             subsample=1,
             colsample_bytree=1,
-            colsample_bylevel=1,
+            colsample_bylevel=.99,
             reg_alpha=0,
-            reg_lambda=1,
+            reg_lambda=.85,
             scale_pos_weight=1,
-            base_score=0.5,
-            seed=0
+            base_score=.5,
+            seed=13
         )
         v_clf = xgb.XGBClassifier(
-            max_depth=5,
-            learning_rate=0.1,
-            n_estimators=1000,
+            max_depth=3,
+            learning_rate=0.15,
+            n_estimators=11,
             silent=True,
             objective="binary:logistic",
             nthread=-1,
-            gamma=0,
-            min_child_weight=1,
+            gamma=0.1,
+            min_child_weight=.99,
             max_delta_step=0,
             subsample=1,
             colsample_bytree=1,
             colsample_bylevel=1,
             reg_alpha=0,
-            reg_lambda=1,
+            reg_lambda=.98,
             scale_pos_weight=1,
-            base_score=0.5,
+            base_score=.5,
             seed=0
         )
 
@@ -162,8 +162,8 @@ def main():
 
         # fit feature selection
         if args.select == 'fisher':
-            a_idx = fisher_idx(287, train_data, train_a_labels)
-            v_idx = fisher_idx(287, train_data, train_v_labels)
+            a_idx = fisher_idx(args.num, train_data, train_a_labels)
+            v_idx = fisher_idx(args.num, train_data, train_v_labels)
             train_a_data, train_v_data = train_data[:, a_idx], train_data[:, v_idx]
             val_a_data, val_v_data = val_data[:, a_idx], val_data[:, v_idx]
         elif args.select == 'rfe':
@@ -246,8 +246,8 @@ def main():
     a_feature_names = [FEATURE_NAMES[idx] for idx in sort_a_idx_history]
     v_feature_names = [FEATURE_NAMES[idx] for idx in sort_v_idx_history]
 
-    print(a_feature_names)
-    print(v_feature_names)
+    # print(a_feature_names)
+    # print(v_feature_names)
 
     # np.save("history/{}_{}_{}_a.npy".format(args.clf, args.select, args.num), sort_a_idx_history)
     # np.save("history/{}_{}_{}_v.npy".format(args.clf, args.select, args.num), sort_v_idx_history)
