@@ -266,9 +266,10 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale,m, toleran
         time_series: Time series for analysis
         sample_length: Number of sequential points of the time series
         scale: Scale factor
+        m: equal to sample length
         tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
     Returns:
-        Vector containing Composite Multiscale Entropy
+        Vector containing RC Composite Multiscale Entropy
     Reference:
         [1] Wu, Shuen-De, et al. "Time series analysis using
             composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
@@ -291,10 +292,10 @@ def RC_sample_entropy(time_series, sample_length, tolerance=None):
     be changed in future releases
     Args:
         time_series: Vector or string of the sample data
-        sample_length: Number of sequential points of the time series
+        sample_length (m): Number of sequential points of the time series
         tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
     Returns:
-        Vector containing Sample Entropy (float)
+        Vector containing RC Sample Entropy (float)
     References:
         [1] http://en.wikipedia.org/wiki/Sample_Entropy
         [2] http://physionet.incor.usp.br/physiotools/sampen/
