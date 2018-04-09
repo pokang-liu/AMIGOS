@@ -61,18 +61,20 @@ def eeg_preprocessing(signals):
     """
     print("EEG")
     signals = np.transpose(signals)
-    tiled_mean = np.tile(signals.mean(1), (4, 1)).transpose()
-    tiled_std = np.tile(signals.std(1), (4, 1)).transpose()
+    length = signals.shape[1]
+    tiled_mean = np.tile(signals.mean(1), (length, 1)).transpose()
+    tiled_std = np.tile(signals.std(1), (length, 1)).transpose()
     nor_signals = (signals - tiled_mean) / tiled_std
 
-    first_region = nor_signals.take([1, 14], 0)
-    second_region = nor_signals.take([2, 3, 4, 11, 12, 13], 0)
-    third_region = nor_signals.take([5, 10], 0)
-    forth_region = nor_signals.take([4, 9], 0)
-    fifth_region = nor_signals.take([7, 8], 0)
+    first_region = nor_signals.take([0, 13], 0)
+    second_region = nor_signals.take([1, 2, 3, 10, 11, 12], 0)
+    third_region = nor_signals.take([4, 9], 0)
+    forth_region = nor_signals.take([3, 8], 0)
+    fifth_region = nor_signals.take([6, 7], 0)
 
     eeg_mvmpe = []
     for s in range(1, 21):
+        print(s, end='\r')
         eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(first_region, s, 5, 1))
         eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(second_region, s, 5, 1))
         eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(third_region, s, 5, 1))
@@ -95,6 +97,7 @@ def ecg_preprocessing(signal):
 
     ibi_pe = []
     for s in range(1, 4):
+        print(s, end='\r')
         ibi_pe.append(multiscale_permutation_entropy(ibi, 5, 1, s))
 
     return ibi_pe
@@ -109,6 +112,7 @@ def gsr_preprocessing(signal):
 
     gsr_pe = []
     for s in range(1, 21):
+        print(s, end='\r')
         gsr_pe.append(multiscale_permutation_entropy(nor_con_signal, 5, 1, s))
 
     return gsr_pe

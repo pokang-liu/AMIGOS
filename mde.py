@@ -8,7 +8,6 @@ Multiscale Dispersion Entropy Implementation
 from argparse import ArgumentParser
 import itertools
 import os
-import warnings
 import time
 
 from biosppy.signals import ecg
@@ -169,6 +168,7 @@ def multivariate_multiscale_dispersion_entropy(signals, scale, classes, emb_dim,
         for tmp_pattern in itertools.combinations(mv_z_signals, emb_dim):
             pattern_index = 0
             for idx, c in enumerate(reversed(tmp_pattern)):
+                c = classes if c == (classes + 1) else c
                 pattern_index += ((c - 1) * (classes ** idx))
 
             dispersion[int(pattern_index)] += 1
@@ -183,18 +183,20 @@ def eeg_preprocessing(signals):
     ''' Preprocessing for EEG signals '''
     print("EEG")
     signals = np.transpose(signals)
-    tiled_mean = np.tile(signals.mean(1), (4, 1)).transpose()
-    tiled_std = np.tile(signals.std(1), (4, 1)).transpose()
+    length = signals.shape[1]
+    tiled_mean = np.tile(signals.mean(1), (length, 1)).transpose()
+    tiled_std = np.tile(signals.std(1), (length, 1)).transpose()
     nor_signals = (signals - tiled_mean) / tiled_std
 
-    first_region = nor_signals.take([1, 14], 0)
-    second_region = nor_signals.take([2, 3, 4, 11, 12, 13], 0)
-    third_region = nor_signals.take([5, 10], 0)
-    forth_region = nor_signals.take([4, 9], 0)
-    fifth_region = nor_signals.take([7, 8], 0)
+    first_region = nor_signals.take([0, 13], 0)
+    second_region = nor_signals.take([1, 2, 3, 10, 11, 12], 0)
+    third_region = nor_signals.take([4, 9], 0)
+    forth_region = nor_signals.take([3, 8], 0)
+    fifth_region = nor_signals.take([6, 7], 0)
 
     eeg_mvmde = []
     for s in range(1, 21):
+        print(s, end='\r')
         eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(first_region, s, 5, 2, 1))
         eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(second_region, s, 5, 2, 1))
         eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(third_region, s, 5, 2, 1))
@@ -216,6 +218,7 @@ def ecg_preprocessing(signal):
 
     ibi_mde = []
     for s in range(1, 4):
+        print(s, end='\r')
         ibi_mde.append(multiscale_dispersion_entropy(ibi, s, 6, 3, 1))
 
     return ibi_mde
@@ -228,6 +231,7 @@ def gsr_preprocessing(signal):
 
     gsr_mde = []
     for s in range(1, 21):
+        print(s, end='\r')
         gsr_mde.append(multiscale_dispersion_entropy(nor_signal, s, 6, 3, 1))
 
     return gsr_mde
