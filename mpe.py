@@ -152,7 +152,7 @@ def main():
     args = parser.parse_args()
 
     amigos_data = read_dataset(args.data)
-    np.savetxt(os.path.join(args.data, 'entropy_mspe_features.csv'), amigos_data, delimiter=',')
+    np.savetxt(os.path.join(args.data, 'mpe_features.csv'), amigos_data, delimiter=',')
 
 
 if __name__ == '__main__':
