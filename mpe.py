@@ -1,23 +1,102 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
-Functions for Preprocessing (Permutation Entropy)
-'''
+"""
+Multiscale Permutation Entropy Implementation
+"""
 
 from argparse import ArgumentParser
 import itertools
 import os
-import warnings
 import time
-import numpy as np
+
 from biosppy.signals import ecg
+import numpy as np
 
-from utils import butter_highpass_filter
-from utils import multiscale_permutation_entropy
 from config import SUBJECT_NUM, VIDEO_NUM, SAMPLE_RATE, MISSING_DATA_SUBJECT
+from utils import butter_highpass_filter
 
-warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
+
+def coarse_graining(signal, scale):
+    """Coarse-graining the signal.
+
+    Arguments:
+        signal: original signal,
+        scale: desired scale
+    Return:
+        new_signal: coarse-grained signal
+    """
+    new_length = int(np.fix(len(signal) / scale))
+    new_signal = np.zeros(new_length)
+    for i in range(new_length):
+        new_signal[i] = np.mean(signal[i * scale:(i + 1) * scale])
+
+    return new_signal
+
+
+def permutation_frequency(signal, emb_dim, delay):
+    """ Calculate permutation frequency.
+
+    Arguments:
+        signal: input signal,
+        emb_dim: embedding dimension,
+        delay: time delay
+    Return:
+        prob: permutation frequency of the signal
+    """
+    length = len(signal)
+    permutations = np.array(list(itertools.permutations(range(emb_dim))))
+    count = np.zeros(len(permutations))
+    for i in range(length - delay * (emb_dim - 1)):
+        motif_index = np.argsort(signal[i:i + delay * emb_dim:delay])
+        for k, perm in enumerate(permutations):
+            if (perm == motif_index).all():
+                count[k] += 1
+
+    prob = count / sum(count)
+
+    return prob
+
+
+def multiscale_permutation_entropy(signal, scale, emb_dim, delay):
+    """ Calculate multiscale permutation entropy.
+
+    Arguments:
+        signal: input signal,
+        scale: coarse graining scale,
+        emd_dim: embedding dimension,
+        delay: time delay
+    Return:
+        mpe: multiscale permutation entropy value of the signal
+    """
+    cg_signal = coarse_graining(signal, scale)
+    prob = permutation_frequency(cg_signal, emb_dim, delay)
+    prob = list(filter(lambda p: p != 0., prob))
+    mpe = -1 * np.sum(prob * np.log(prob))
+
+    return mpe
+
+def refined_composite_multiscale_permutation_entropy(signal, scale, emb_dim, delay):
+    """ Calculate refined compositie multiscale permutation entropy.
+
+    Arguments:
+        signal: input signal,
+        scale: coarse graining scale,
+        emd_dim: embedding dimension,
+        delay: time delay
+    Return:
+        rcmpe: refined compositie multiscale permutation entropy value of the signal
+    """
+    probs = []
+    for i in range(scale):
+        cg_signal = coarse_graining(signal, i + 1)
+        tmp_prob = permutation_frequency(cg_signal, emb_dim, delay)
+        probs.append(tmp_prob)
+    prob = np.mean(probs, axis=0)
+    prob = list(filter(lambda p: p != 0., prob))
+    rcmpe = -1 * np.sum(prob * np.log(prob))
+
+    return rcmpe
 
 
 def multivariate_multiscale_permutation_entropy(signals, scale, emb_dim, delay):
@@ -26,7 +105,7 @@ def multivariate_multiscale_permutation_entropy(signals, scale, emb_dim, delay):
     Arguments:
         signals: input signals,
         scale: coarse graining scale,
-        emb_dim: embedding dimension,
+        emb_dim: embedding dimension (m),
         delay: time delay
     Return:
         mvpe: multivariate permutation entropy value of the signal
@@ -35,24 +114,22 @@ def multivariate_multiscale_permutation_entropy(signals, scale, emb_dim, delay):
     length = signals.shape[1]
 
     new_length = int(np.fix(length / scale))
-    granulate_signals = np.zeros((num_channels, new_length))
+    cg_signals = np.zeros((num_channels, new_length))
     for c in range(num_channels):
-        for i in range(new_length):
-            granulate_signals[c, i] = np.mean(signals[c, i * scale: (i + 1) * scale])
+        cg_signals[c] = coarse_graining(signals[c], scale)
 
     permutations = np.array(list(itertools.permutations(range(emb_dim))))
     count = np.zeros((num_channels, len(permutations)))
     for i in range(num_channels):
         for j in range(new_length - delay * (emb_dim - 1)):
-            motif_index = np.argsort(granulate_signals[i, j:j + delay * emb_dim:delay])
+            motif_index = np.argsort(cg_signals[i, j:j + delay * emb_dim:delay])
             for k, perm in enumerate(permutations):
                 if (perm == motif_index).all():
                     count[i, k] += 1
 
-    channel_motifs_dist = count / (num_channels * (new_length - delay * (emb_dim - 1)))
-    motifs_dist = np.sum(channel_motifs_dist, axis=0)
-    mmpe = -1 * np.sum(motifs_dist * np.ma.log2(motifs_dist).filled(0))
-
+    count = [el for el in count.flatten() if el != 0]
+    prob = np.divide(count, sum(count))
+    mmpe = -sum(prob * np.log(prob))
     return mmpe
 
 
@@ -74,12 +151,13 @@ def eeg_preprocessing(signals):
 
     eeg_mvmpe = []
     for s in range(1, 21):
-        print(s, end='\r')
-        eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(first_region, s, 5, 1))
-        eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(second_region, s, 5, 1))
-        eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(third_region, s, 5, 1))
-        eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(forth_region, s, 5, 1))
-        eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(fifth_region, s, 5, 1))
+        for d in range(2, 7):
+            print("s{}, d{}".format(s, d), end='\r')
+            eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(first_region, s, d, 1))
+            eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(second_region, s, d, 1))
+            eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(third_region, s, d, 1))
+            eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(forth_region, s, d, 1))
+            eeg_mvmpe.append(multivariate_multiscale_permutation_entropy(fifth_region, s, d, 1))
 
     return eeg_mvmpe
 
@@ -97,8 +175,9 @@ def ecg_preprocessing(signal):
 
     ibi_pe = []
     for s in range(1, 4):
-        print(s, end='\r')
-        ibi_pe.append(multiscale_permutation_entropy(ibi, 5, 1, s))
+        for d in range(2, 7):
+            print("s{}, d{}".format(s, d), end='\r')
+            ibi_pe.append(refined_composite_multiscale_permutation_entropy(ibi, s, d, 1))
 
     return ibi_pe
 
@@ -112,8 +191,9 @@ def gsr_preprocessing(signal):
 
     gsr_pe = []
     for s in range(1, 21):
-        print(s, end='\r')
-        gsr_pe.append(multiscale_permutation_entropy(nor_con_signal, 5, 1, s))
+        for d in range(2, 7):
+            print("s{}, d{}".format(s, d), end='\r')
+            gsr_pe.append(refined_composite_multiscale_permutation_entropy(nor_con_signal, s, d, 1))
 
     return gsr_pe
 
@@ -156,7 +236,7 @@ def main():
     args = parser.parse_args()
 
     amigos_data = read_dataset(args.data)
-    np.savetxt(os.path.join(args.data, 'mpe_features.csv'), amigos_data, delimiter=',')
+    np.savetxt(os.path.join(args.data, 'gsr_rcmpe.csv'), amigos_data, delimiter=',')
 
 
 if __name__ == '__main__':

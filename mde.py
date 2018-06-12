@@ -46,11 +46,12 @@ def ncdf_mapping(signal):
     """
     length = len(signal)
     mean = np.mean(signal)
-    std = np.std(signal)
+    std = np.std(signal) if np.std(signal) != 0 else 0.001
     ncdf = norm(loc=mean, scale=std)
     mapped_signal = np.zeros(length)
     for i in range(length):
         mapped_signal[i] = ncdf.cdf(signal[i])
+
     return mapped_signal
 
 
@@ -63,22 +64,23 @@ def dispersion_frequency(signal, classes, emb_dim, delay):
         emb_dim: embedding dimension,
         delay: time delay
     Return:
-        de: dispersion frequency of the signal
+        prob: dispersion frequency of the signal
     """
     length = len(signal)
     mapped_signal = ncdf_mapping(signal)
     z_signal = np.round(classes * mapped_signal + 0.5)
-    dispersion = np.zeros(classes ** emb_dim)
-    num_patterns = length - (emb_dim - 1) * delay
-    for i in range(num_patterns):
+    dispersions = np.zeros(classes ** emb_dim)
+    for i in range(length - (emb_dim - 1) * delay):
         tmp_pattern = z_signal[i:i + emb_dim * delay:delay]
         pattern_index = 0
         for idx, c in enumerate(reversed(tmp_pattern)):
+            c = classes if c == (classes + 1) else c
             pattern_index += ((c - 1) * (classes ** idx))
 
-        dispersion[int(pattern_index)] += 1
+        dispersions[int(pattern_index)] += 1
 
-    prob = dispersion / num_patterns
+    prob = dispersions / sum(dispersions)
+
     return prob
 
 
@@ -96,6 +98,7 @@ def dispersion_entropy(signal, classes, emb_dim, delay):
     prob = dispersion_frequency(signal, classes, emb_dim, delay)
     prob = list(filter(lambda p: p != 0., prob))
     de = -1 * np.sum(prob * np.log(prob))
+
     return de
 
 
@@ -115,10 +118,11 @@ def multiscale_dispersion_entropy(signal, scale, classes, emb_dim, delay):
     prob = dispersion_frequency(cg_signal, classes, emb_dim, delay)
     prob = list(filter(lambda p: p != 0., prob))
     mde = -1 * np.sum(prob * np.log(prob))
+
     return mde
 
 
-def refined_composite_dispersion_entropy(signal, scale, classes, emb_dim, delay):
+def refined_composite_multiscale_dispersion_entropy(signal, scale, classes, emb_dim, delay):
     """ Calculate refined compositie multiscale dispersion entropy.
 
     Arguments:
@@ -138,6 +142,7 @@ def refined_composite_dispersion_entropy(signal, scale, classes, emb_dim, delay)
     prob = np.mean(probs, axis=0)
     prob = list(filter(lambda p: p != 0., prob))
     rcmde = -1 * np.sum(prob * np.log(prob))
+
     return rcmde
 
 
@@ -176,6 +181,7 @@ def multivariate_multiscale_dispersion_entropy(signals, scale, classes, emb_dim,
     prob = dispersion / num_patterns
     prob = list(filter(lambda p: p != 0., prob))
     mvmde = -1 * np.sum(prob * np.log(prob))
+
     return mvmde
 
 
@@ -196,12 +202,13 @@ def eeg_preprocessing(signals):
 
     eeg_mvmde = []
     for s in range(1, 21):
-        print(s, end='\r')
-        eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(first_region, s, 5, 2, 1))
-        eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(second_region, s, 5, 2, 1))
-        eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(third_region, s, 5, 2, 1))
-        eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(forth_region, s, 5, 2, 1))
-        eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(fifth_region, s, 5, 2, 1))
+        for d in range(2, 4):
+            print("s{}, d{}".format(s, d), end='\r')
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(first_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(second_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(third_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(forth_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(fifth_region, s, 6, d, 1))
 
     return eeg_mvmde
 
@@ -218,8 +225,9 @@ def ecg_preprocessing(signal):
 
     ibi_mde = []
     for s in range(1, 4):
-        print(s, end='\r')
-        ibi_mde.append(multiscale_dispersion_entropy(ibi, s, 6, 3, 1))
+        for d in range(2, 4):
+            print("s{}, d{}".format(s, d), end='\r')
+            ibi_mde.append(refined_composite_multiscale_dispersion_entropy(ibi, s, 6, d, 1))
 
     return ibi_mde
 
@@ -231,8 +239,9 @@ def gsr_preprocessing(signal):
 
     gsr_mde = []
     for s in range(1, 21):
-        print(s, end='\r')
-        gsr_mde.append(multiscale_dispersion_entropy(nor_signal, s, 6, 3, 1))
+        for d in range(2, 4):
+            print("s{}, d{}".format(s, d), end='\r')
+            gsr_mde.append(refined_composite_multiscale_dispersion_entropy(nor_signal, s, 6, d, 1))
 
     return gsr_mde
 
@@ -241,7 +250,7 @@ def read_dataset(path):
     ''' Read AMIGOS dataset '''
     amigos_data = np.array([])
 
-    for sid in range(SUBJECT_NUM):
+    for sid in range(30, 40):
         for vid in range(VIDEO_NUM):
             if sid + 1 in MISSING_DATA_SUBJECT:
                 print("Skipping {}_{}.csv".format(sid + 1, vid + 1))
@@ -275,7 +284,7 @@ def main():
     args = parser.parse_args()
 
     amigos_data = read_dataset(args.data)
-    np.savetxt(os.path.join(args.data, 'mde_features.csv'), amigos_data, delimiter=',')
+    np.savetxt(os.path.join(args.data, 'gsr_rcmde_4.csv'), amigos_data, delimiter=',')
 
 
 if __name__ == '__main__':

@@ -5,55 +5,81 @@
 Utilities
 '''
 
-import itertools
 import os
+
 import numpy as np
 from PyEMD import EMD
 from scipy.signal import butter, lfilter, filtfilt, welch
-
-from config import MISSING_DATA_SUBJECT, SUBJECT_NUM, VIDEO_NUM, FEATURE_NAMES
 from sklearn.feature_selection import f_classif
 
-TMP_FEATURE_NAMES = ['ibi_pe', 'nor_signals_pe', 'nor_con_signals_pe']
+from config import MISSING_DATA_SUBJECT, SUBJECT_NUM
+
+FEATURE_NAMES = []
+
+# for s in range(1, 21):
+#     for d in range(2, 7):
+#         for r in range(1, 6):
+#             FEATURE_NAMES.append("eeg_mmpe_s{}_d{}_r{}".format(s, d, r))
+
+# for s in range(1, 4):
+#     for d in range(2, 7):
+#         FEATURE_NAMES.append("ecg_rcmpe_s{}_d{}".format(s, d))
+
+for s in range(1, 21):
+    for d in range(2, 7):
+        FEATURE_NAMES.append("gsr_rcmpe_s{}_d{}".format(s, d))
 
 
 def pvalue(path):
     ''' Calculate P-value '''
     # read extracted features
-    amigos_data = np.loadtxt(os.path.join(path, 'entropy_features.csv'), delimiter=',')
+    amigos_data = np.loadtxt(os.path.join(path, 'mpe', 'mpe_features.csv'), delimiter=',')
+    # amigos_data = amigos_data[:, :500] # EEG
+    # amigos_data = amigos_data[:, 500:515] # ECG
+    amigos_data = amigos_data[:, 515:] # GSR
 
     # read labels and split to 0 and 1 by
-    labels = np.loadtxt(os.path.join(path, 'label.csv'), delimiter=',')
-    labels = labels[:, :2]
-    a_labels, v_labels = [], []
-    for i in range(SUBJECT_NUM):
-        if i + 1 in MISSING_DATA_SUBJECT:
-            continue
-        a_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 0])
-        v_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 1])
-        for idx, label in enumerate(labels[i * 16:i * 16 + 16, :]):
-            a_tmp = 1 if label[0] > a_labels_mean else 0
-            v_tmp = 1 if label[1] > v_labels_mean else 0
-            a_labels.append(a_tmp)
-            v_labels.append(v_tmp)
-    a_labels, v_labels = np.array(a_labels), np.array(v_labels)
+    a_labels, v_labels = read_labels(os.path.join(path, 'label.csv'))
 
+    # calculate p-value
     _, a_pvalues = f_classif(amigos_data, a_labels)
     _, v_pvalues = f_classif(amigos_data, v_labels)
 
-    print(a_pvalues)
-    print(v_pvalues)
+    # arousal
+    sel_idx = np.argsort(a_pvalues)[:20]
+    a_saved_name = []
+    for idx in sel_idx:
+        a_saved_name.append(FEATURE_NAMES[idx])
+
+    # valence
+    sel_idx = np.argsort(v_pvalues)[:0]
+    v_saved_name = []
+    for idx in sel_idx:
+        v_saved_name.append(FEATURE_NAMES[idx])
+    with open('data/s_gsr_rcmpe_name', 'w') as f:
+        for name in a_saved_name:
+            f.write("{}\n".format(name))
+        for name in v_saved_name:
+            f.write("{}\n".format(name))
+
+    print('Arousal')
+    for idx in np.argsort(a_pvalues)[:3]:
+        print(FEATURE_NAMES[idx], a_pvalues[idx])
+
+    print('Valence')
+    for idx in np.argsort(v_pvalues)[:3]:
+        print(FEATURE_NAMES[idx], v_pvalues[idx])
 
     print('\nUse Arousal Labels')
     print("Number of features (p < 0.05): {}".format(a_pvalues[a_pvalues < 0.05].size))
     for i in range(a_pvalues[a_pvalues < 0.05].size):
-        print("Features: {}, Value: {}".format(TMP_FEATURE_NAMES[np.where(
+        print("Features: {}, Value: {:.4f}".format(FEATURE_NAMES[np.where(
             a_pvalues < 0.05)[0][i]], a_pvalues[np.where(a_pvalues < 0.05)[0][i]]))
 
     print('\nUse Valence Labels')
     print("Number of features (p < 0.05): {}".format(v_pvalues[v_pvalues < 0.05].size))
     for i in range(v_pvalues[v_pvalues < 0.05].size):
-        print("Features: {}, Value: {}".format(TMP_FEATURE_NAMES[np.where(
+        print("Features: {}, Value: {:.4f}".format(FEATURE_NAMES[np.where(
             v_pvalues < 0.05)[0][i]], v_pvalues[np.where(v_pvalues < 0.05)[0][i]]))
 
 
@@ -143,6 +169,33 @@ def detrend(data):
     return detrended, trend
 
 
+def read_labels(path):
+    """ Read labels of arousal and valance
+
+    Arguments:
+        path: path of the label file
+    Return:
+        a_labels: arousal labels
+        v_labels: valance labels
+    """
+    labels = np.loadtxt(path, delimiter=',')
+    labels = labels[:, :2]
+    a_labels, v_labels = [], []
+    for i in range(SUBJECT_NUM):
+        if i + 1 in MISSING_DATA_SUBJECT:
+            continue
+        a_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 0])
+        v_labels_mean = np.mean(labels[i * 16:i * 16 + 16, 1])
+        for idx, label in enumerate(labels[i * 16:i * 16 + 16, :]):
+            a_tmp = 1 if label[0] > a_labels_mean else 0
+            v_tmp = 1 if label[1] > v_labels_mean else 0
+            a_labels.append(a_tmp)
+            v_labels.append(v_tmp)
+    a_labels, v_labels = np.array(a_labels), np.array(v_labels)
+
+    return a_labels, v_labels
+
+
 def sample_entropy(time_series, sample_length, tolerance=None):
     epsilon = 0.000001
     if tolerance is None:
@@ -196,37 +249,6 @@ def multiscale_entropy(time_series, scaling_factor, m, tolerance=None):
         mse[0, i] = se[-1]
 
     return mse[0]
-
-
-def permutation_entropy(time_series, m, delay):
-    """Calculate the Permutation Entropy
-    Args:
-        time_series: Time series for analysis
-        m: Order of permutation entropy
-        delay: Time delay
-    Returns:
-        Vector containing Permutation Entropy
-    Reference:
-        [1] Massimiliano Zanin et al. Permutation Entropy and Its Main Biomedical and Econophysics Applications:
-            A Review. http://www.mdpi.com/1099-4300/14/8/1553/pdf
-        [2] Christoph Bandt and Bernd Pompe. Permutation entropy — a natural complexity
-            measure for time series. http://stubber.math-inf.uni-greifswald.de/pub/full/prep/2001/11.pdf
-        [3] http://www.mathworks.com/matlabcentral/fileexchange/37289-permutation-entropy/content/pec.m
-    """
-    n = len(time_series)
-    permutations = np.array(list(itertools.permutations(range(m))))
-    c = [0] * len(permutations)
-
-    for i in range(n - delay * (m - 1)):
-        sorted_index_array = np.argsort(time_series[i:i + delay * m:delay], kind='quicksort')
-        for j in range(len(permutations)):
-            if abs(permutations[j] - sorted_index_array).any() == 0:
-                c[j] += 1
-
-    c = [element for element in c if element != 0]
-    p = np.divide(np.array(c), float(sum(c)))
-    pe = -sum(p * np.log(p))
-    return pe
 
 
 def util_granulate_time_series(time_series, scale):
@@ -344,22 +366,6 @@ def RC_sample_entropy(time_series, sample_length, tolerance=None):
 
     return A_B
 
-
-def multiscale_permutation_entropy(time_series, m, delay, scale):
-    """Calculate multiscale permutation entropy
-    """
-    n = len(time_series)
-
-    b = int(np.fix(n / (scale + 1)))
-    temp_ts = [0] * int(b)
-    for i in range(b):
-        num = sum(time_series[i * (scale + 1): (i + 1) * (scale + 1)])
-        den = scale + 1
-        temp_ts[i] = float(num) / float(den)
-
-    mspe = permutation_entropy(temp_ts, m, delay)
-
-    return mspe
 
 def main():
     ''' Main function '''
