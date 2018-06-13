@@ -140,8 +140,8 @@ def main():
 
     # tune classifier parameters
     grid_search_params = {
-        'max_depth': np.arange(1, 6),
-        'n_estimators': np.arange(1, 101)
+        'max_depth': [],
+        'n_estimators': []
     }
     other_tuning_params = {
         'learning_rate': np.arange(0.01, 0.41, 0.01),
@@ -158,14 +158,19 @@ def main():
         'seed': np.arange(0, 41)
     }
 
+    with open(os.path.join(args.data, 'model', "new_a_{}_model.pkl".format(args.feat)), 'rb') as f:
+        a_param = pickle.load(f)
+    with open(os.path.join(args.data, 'model', "new_v_{}_model.pkl".format(args.feat)), 'rb') as f:
+        v_param = pickle.load(f)
+
     # grid search tuning
     a_best_params = {
-        'max_depth': 1,
-        'n_estimators': 1
+        'max_depth': a_param['max_depth'],
+        'n_estimators': a_param['n_estimators']
     }
     v_best_params = {
-        'max_depth': 1,
-        'n_estimators': 1
+        'max_depth': v_param['max_depth'],
+        'n_estimators': v_param['n_estimators']
     }
     a_acc, v_acc = 0, 0
 
@@ -203,9 +208,9 @@ def main():
         v_best_params[param_name] = v_param
 
     ver = 'old' if args.old else 'new'
-    with open(os.path.join(args.data, "{}_a_{}_model.pkl".format(ver, args.feat)), 'wb') as f:
+    with open(os.path.join(args.data, 'model', "{}_a_{}_model.pkl".format(ver, args.feat)), 'wb') as f:
         pickle.dump(a_best_params, f)
-    with open(os.path.join(args.data, "{}_v_{}_model.pkl".format(ver, args.feat)), 'wb') as f:
+    with open(os.path.join(args.data, 'model', "{}_v_{}_model.pkl".format(ver, args.feat)), 'wb') as f:
         pickle.dump(v_best_params, f)
 
 
