@@ -26,79 +26,6 @@ A_FEATURE_NAMES = FEATURE_NAMES + A_FEATURE_NAMES
 V_FEATURE_NAMES = FEATURE_NAMES + V_FEATURE_NAMES
 
 
-def tuning(clf, param_name, tuning_params, data, labels, kf):
-    """ Tuning one parameter
-    """
-    a_labels, v_labels = labels['a'], labels['v']
-    a_acc_history = []
-    v_acc_history = []
-
-    for param in tqdm(tuning_params):
-        # initialize history list
-        train_a_accuracy_history = []
-        train_v_accuracy_history = []
-        val_a_accuracy_history = []
-        val_v_accuracy_history = []
-
-        # setup classifier
-        a_clf, v_clf = clf['a'], clf['v']
-        a_clf.set_params(**{param_name: param})
-        v_clf.set_params(**{param_name: param})
-
-        for train_idx, val_idx in kf.split(data):
-            # collect data for cross validation
-            train_data, val_data = data[train_idx], data[val_idx]
-            train_a_labels, val_a_labels = a_labels[train_idx], a_labels[val_idx]
-            train_v_labels, val_v_labels = v_labels[train_idx], v_labels[val_idx]
-
-            # normalize using mean and std
-            train_data_mean = np.mean(train_data, axis=0)
-            train_data_std = np.std(train_data, axis=0)
-            train_data = (train_data - train_data_mean) / train_data_std
-            val_data_mean = np.mean(val_data, axis=0)
-            val_data_std = np.std(val_data, axis=0)
-            val_data = (val_data - val_data_mean) / val_data_std
-
-            # fit classifier
-            a_clf.fit(train_data, train_a_labels)
-            v_clf.fit(train_data, train_v_labels)
-
-            # predict arousal and valence
-            train_a_predict_labels = a_clf.predict(train_data)
-            train_v_predict_labels = v_clf.predict(train_data)
-            val_a_predict_labels = a_clf.predict(val_data)
-            val_v_predict_labels = v_clf.predict(val_data)
-
-            # metrics calculation
-            train_a_accuracy = f1_score(train_a_labels, train_a_predict_labels, average='macro')
-            train_v_accuracy = f1_score(train_v_labels, train_v_predict_labels, average='macro')
-            val_a_accuracy = f1_score(val_a_labels, val_a_predict_labels, average='macro')
-            val_v_accuracy = f1_score(val_v_labels, val_v_predict_labels, average='macro')
-
-            train_a_accuracy_history.append(train_a_accuracy)
-            train_v_accuracy_history.append(train_v_accuracy)
-            val_a_accuracy_history.append(val_a_accuracy)
-            val_v_accuracy_history.append(val_v_accuracy)
-
-        train_a_mean_accuracy = np.mean(train_a_accuracy_history)
-        train_v_mean_accuracy = np.mean(train_v_accuracy_history)
-        val_a_mean_accuracy = np.mean(val_a_accuracy_history)
-        val_v_mean_accuracy = np.mean(val_v_accuracy_history)
-
-        a_acc_history.append(val_a_mean_accuracy)
-        v_acc_history.append(val_v_mean_accuracy)
-
-    print('Tuning Result:')
-    a_max_idx = np.argmax(a_acc_history)
-    print("Arousal: Best value = {:.2f}, acc = {:.4f}".format(
-        tuning_params[a_max_idx], a_acc_history[a_max_idx]))
-    v_max_idx = np.argmax(v_acc_history)
-    print("Valence: Best value = {:.2f}, acc = {:.4f}\n".format(
-        tuning_params[v_max_idx], v_acc_history[v_max_idx]))
-
-    return tuning_params[a_max_idx], tuning_params[v_max_idx], a_acc_history[a_max_idx], v_acc_history[v_max_idx]
-
-
 def main():
     """ Main function
     """
@@ -141,15 +68,16 @@ def main():
     kf = KFold(n_splits=sub_num)
 
     # classifier parameters
-    with open(os.path.join(args.data, 'model', 'new_a_all_model.pkl'), 'rb') as f:
-        a_param = pickle.load(f)
-    with open(os.path.join(args.data, 'model', 'new_v_all_model.pkl'), 'rb') as f:
-        v_param = pickle.load(f)
+    with open(os.path.join(args.data, 'model', "{}_a_{}_model.pkl".format('old' if args.old else 'new', args.feat)), 'rb') as f:
+        a_params = pickle.load(f)
+    with open(os.path.join(args.data,'model', "{}_v_{}_model.pkl".format('old' if args.old else 'new',  args.feat)), 'rb') as f:
+        v_params = pickle.load(f)
 
     a_clf = xgb.XGBClassifier(objective="binary:logistic")
     v_clf = xgb.XGBClassifier(objective="binary:logistic")
-    a_clf.set_params(**a_param)
-    v_clf.set_params(**v_param)
+
+    a_clf.set_params(**a_params)
+    v_clf.set_params(**v_params)
 
     train_a_accuracy_history = []
     train_v_accuracy_history = []
@@ -199,19 +127,8 @@ def main():
     a_imp = a_clf.feature_importances_
     v_imp = v_clf.feature_importances_
 
-    with open('a_imp', 'w') as f:
-        for imp in a_imp:
-            f.write("{}\n".format(imp))
-
-    with open('v_imp', 'w') as f:
-        for imp in v_imp:
-            f.write("{}\n".format(imp))
-
     a_sort_idx = np.argsort(a_imp)[::-1]
     v_sort_idx = np.argsort(v_imp)[::-1]
-
-    print(a_sort_idx)
-    print(v_sort_idx)
 
     with open('a_imp_name', 'w') as f:
         for idx in a_sort_idx:

@@ -158,19 +158,19 @@ def main():
         'seed': np.arange(0, 41)
     }
 
-    with open(os.path.join(args.data, 'model', "new_a_{}_model.pkl".format(args.feat)), 'rb') as f:
-        a_param = pickle.load(f)
-    with open(os.path.join(args.data, 'model', "new_v_{}_model.pkl".format(args.feat)), 'rb') as f:
-        v_param = pickle.load(f)
+    # with open(os.path.join(args.data, 'model', "old_a_{}_model.pkl".format(args.feat)), 'rb') as f:
+    #     a_param = pickle.load(f)
+    # with open(os.path.join(args.data, 'model', "old_v_{}_model.pkl".format(args.feat)), 'rb') as f:
+    #     v_param = pickle.load(f)
 
     # grid search tuning
     a_best_params = {
-        'max_depth': a_param['max_depth'],
-        'n_estimators': a_param['n_estimators']
+        'max_depth': 3,
+        'n_estimators': 20
     }
     v_best_params = {
-        'max_depth': v_param['max_depth'],
-        'n_estimators': v_param['n_estimators']
+        'max_depth': 3,
+        'n_estimators': 20
     }
     a_acc, v_acc = 0, 0
 
