@@ -233,7 +233,16 @@ def sample_entropy(time_series, sample_length, tolerance=None):
 
 
 def multiscale_entropy(time_series, scaling_factor, m, tolerance=None):
-
+    """
+    Calculate the Multiscale Entropy of the given time series.
+    Args:
+        time_series: Time series for analysis
+        scaling_factor: Scale factor
+        m: Number of sequential points of the time series
+        tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
+    Returns:
+        Multiscale Entropy
+    """
     n = len(time_series)
     mse = np.zeros((1, scaling_factor))
 
@@ -271,14 +280,11 @@ def composite_multiscale_entropy(time_series, m, scale, tolerance=None):
     """Calculate the Composite Multiscale Entropy of the given time series.
     Args:
         time_series: Time series for analysis
-        sample_length: Number of sequential points of the time series
+        m: The length of the template vector
         scale: Scale factor
         tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
     Returns:
-        Vector containing Composite Multiscale Entropy
-    Reference:
-        [1] Wu, Shuen-De, et al. "Time series analysis using
-            composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
+        Vector of Composite Multiscale Entropy
     """
     cmse = np.zeros((1, scale))
 
@@ -300,10 +306,7 @@ def RC_composite_multiscale_entropy(time_series, sample_length, scale, m, tolera
         m: equal to sample length
         tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
     Returns:
-        Vector containing RC Composite Multiscale Entropy
-    Reference:
-        [1] Wu, Shuen-De, et al. "Time series analysis using
-            composite multiscale entropy." Entropy 15.3 (2013): 1069-1084.
+        RC Composite Multiscale Entropy
     """
     A_sum = 0
     B_sum = 0
@@ -328,11 +331,6 @@ def RC_sample_entropy(time_series, sample_length, tolerance=None):
         tolerance: Tolerance (default = 0.1...0.2 * std(time_series))
     Returns:
         Vector containing RC Sample Entropy (float)
-    References:
-        [1] http://en.wikipedia.org/wiki/Sample_Entropy
-        [2] http://physionet.incor.usp.br/physiotools/sampen/
-        [3] Madalena Costa, Ary Goldberger, CK Peng. Multiscale entropy analysis
-            of biological signals
     """
     if tolerance is None:
         tolerance = 0.1 * np.std(time_series)
