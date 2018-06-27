@@ -20,7 +20,7 @@ from utils import butter_highpass_filter
 
 
 def coarse_graining(signal, scale):
-    """Coarse-graining the signal.
+    """Coarse-graining the signals.
 
     Arguments:
         signal: original signal,
