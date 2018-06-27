@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-Functions for Preprocessing
+Functions for Preprocessing 
+Extract the time-domain and frequency-domian features of original AMIGOS dataset
 '''
 
 from argparse import ArgumentParser
