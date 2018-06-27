@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Multiscale Dispersion Entropy Implementation123
+Multiscale Dispersion Entropy Implementation
 """
 
 from argparse import ArgumentParser
