@@ -2,8 +2,9 @@ import itertools
 import os
 import numpy as np
 from math import log
-
-
+'''
+Multivariate Multi-Scale Entropy implementation
+'''
 def MMSE(time_series, M, r, tor):
     m_count = 0.0
     m_1_count = 0.0
