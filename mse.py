@@ -3,7 +3,8 @@
 
 '''
 Functions for Preprocessing
-'''
+EXtract the features of Refined Composite Multi-Scale Entropy, Multi-Scale Entropy 
+''' 
 
 from argparse import ArgumentParser
 import os
