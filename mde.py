@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Multiscale Dispersion Entropy Implementation
+Multiscale Dispersion Entropy Implementation123
 """
 
 from argparse import ArgumentParser
@@ -167,7 +167,8 @@ def multivariate_multiscale_dispersion_entropy(signals, scale, classes, emb_dim,
         z_signals[i] = np.round(classes * mapped_signals + 0.5)
 
     dispersion = np.zeros(classes ** emb_dim)
-    num_patterns = (length - (emb_dim - 1) * delay) * comb(emb_dim * num_channels, emb_dim)
+    num_patterns = (length - (emb_dim - 1) * delay) * \
+        comb(emb_dim * num_channels, emb_dim)
     for i in range(length - (emb_dim - 1) * delay):
         mv_z_signals = z_signals[:, i:i + emb_dim * delay:delay].flatten()
         for tmp_pattern in itertools.combinations(mv_z_signals, emb_dim):
@@ -204,11 +205,16 @@ def eeg_preprocessing(signals):
     for s in range(1, 21):
         for d in range(2, 4):
             print("s{}, d{}".format(s, d), end='\r')
-            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(first_region, s, 6, d, 1))
-            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(second_region, s, 6, d, 1))
-            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(third_region, s, 6, d, 1))
-            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(forth_region, s, 6, d, 1))
-            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(fifth_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(
+                first_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(
+                second_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(
+                third_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(
+                forth_region, s, 6, d, 1))
+            eeg_mvmde.append(multivariate_multiscale_dispersion_entropy(
+                fifth_region, s, 6, d, 1))
 
     return eeg_mvmde
 
@@ -227,7 +233,8 @@ def ecg_preprocessing(signal):
     for s in range(1, 4):
         for d in range(2, 4):
             print("s{}, d{}".format(s, d), end='\r')
-            ibi_mde.append(refined_composite_multiscale_dispersion_entropy(ibi, s, 6, d, 1))
+            ibi_mde.append(
+                refined_composite_multiscale_dispersion_entropy(ibi, s, 6, d, 1))
 
     return ibi_mde
 
@@ -241,7 +248,8 @@ def gsr_preprocessing(signal):
     for s in range(1, 21):
         for d in range(2, 4):
             print("s{}, d{}".format(s, d), end='\r')
-            gsr_mde.append(refined_composite_multiscale_dispersion_entropy(nor_signal, s, 6, d, 1))
+            gsr_mde.append(refined_composite_multiscale_dispersion_entropy(
+                nor_signal, s, 6, d, 1))
 
     return gsr_mde
 
@@ -261,7 +269,8 @@ def read_dataset(path):
                                     delimiter=',')
             eeg_signals = signals[:, :14]
             ecg_signal = signals[:, 14]  # Column 14 or 15
-            gsr_signal = signals[20:, -1]  # ignore the first 20 data, since there is noise in it
+            # ignore the first 20 data, since there is noise in it
+            gsr_signal = signals[20:, -1]
 
             eeg_features = eeg_preprocessing(eeg_signals)
             ecg_features = ecg_preprocessing(ecg_signal)
@@ -269,7 +278,8 @@ def read_dataset(path):
 
             features = np.array(eeg_features + ecg_features + gsr_features)
 
-            amigos_data = np.vstack((amigos_data, features)) if amigos_data.size else features
+            amigos_data = np.vstack(
+                (amigos_data, features)) if amigos_data.size else features
             print('Duration:', time.time() - start_time, 's')
 
     return amigos_data
@@ -284,7 +294,8 @@ def main():
     args = parser.parse_args()
 
     amigos_data = read_dataset(args.data)
-    np.savetxt(os.path.join(args.data, 'gsr_rcmde_4.csv'), amigos_data, delimiter=',')
+    np.savetxt(os.path.join(args.data, 'gsr_rcmde_4.csv'),
+               amigos_data, delimiter=',')
 
 
 if __name__ == '__main__':
