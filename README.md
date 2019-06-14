@@ -1,10 +1,15 @@
-Affective computing using AMIGOS dataset
+Affective computing with AMIGOS dataset
 ===
 
 ## Requirement
 
-Python == 3.6.5  
-
+Python == 3.6.3  
+biosppy == 0.5.0  
+EMD-signal == 0.2.3  
+numpy == 1.13.3  
+scipy == 0.19.1  
+scikit-learn == 0.19.0  
+xgboost == 0.6  
 
 ## Usage
 
